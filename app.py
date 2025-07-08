@@ -13,20 +13,13 @@ from io import BytesIO
 from flask_mail import Mail, Message
 import re
 import json
+from cryptography.fernet import Fernet
+from sqlalchemy import TypeDecorator, Text
+from sqlalchemy.ext.hybrid import hybrid_property
 
 # Initialize Flask app
 app = Flask(__name__)
-# ... (all existing imports and code from previous app.py remain unchanged)
-# ... (all existing app config, models, forms, and routes remain unchanged)
-# Context processor to inject current year
-@app.context_processor
-def utility_processor():
-    def get_current_year():
-        return datetime.now().year
-    return dict(current_year=get_current_year)
-
-# ... (rest of the app.py code remains unchanged, including routes and if __name__ == '__main__': block)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///afh.db'  # Updated to root directory
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///afh.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
 app.config['UPLOAD_FOLDER'] = 'documents'
@@ -37,6 +30,13 @@ app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'your-email@gmail.com')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', 'your-app-password')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_USERNAME', 'your-email@gmail.com')
+
+# Initialize encryption
+ENCRYPTION_KEY = os.environ.get('ENCRYPTION_KEY')
+if not ENCRYPTION_KEY:
+    raise ValueError("ENCRYPTION_KEY not set in environment variables")
+cipher = Fernet(ENCRYPTION_KEY.encode())
+
 db = SQLAlchemy(app)
 mail = Mail(app)
 
@@ -51,6 +51,20 @@ login_manager.login_view = 'login'
 # CSRF Protection
 csrf = CSRFProtect(app)
 
+# Custom SQLAlchemy type for encrypted fields
+class EncryptedText(TypeDecorator):
+    impl = Text
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        return cipher.encrypt(value.encode()).decode()
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        return cipher.decrypt(value.encode()).decode()
+
 # Database Models
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
@@ -60,25 +74,81 @@ class User(db.Model, UserMixin):
 
 class Resident(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    dob = db.Column(db.Date, nullable=False)
-    medical_info = db.Column(db.Text)
-    emergency_contact = db.Column(db.String(100))
+    _name = db.Column(EncryptedText, nullable=False)
+    _dob = db.Column(EncryptedText, nullable=False)
+    _medical_info = db.Column(EncryptedText)
+    _emergency_contact = db.Column(EncryptedText)
+
+    @hybrid_property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        self._name = value
+
+    @hybrid_property
+    def dob(self):
+        return datetime.strptime(self._dob, '%Y-%m-%d').date() if self._dob else None
+
+    @dob.setter
+    def dob(self, value):
+        self._dob = value.strftime('%Y-%m-%d') if value else None
+
+    @hybrid_property
+    def medical_info(self):
+        return self._medical_info
+
+    @medical_info.setter
+    def medical_info(self, value):
+        self._medical_info = value
+
+    @hybrid_property
+    def emergency_contact(self):
+        return self._emergency_contact
+
+    @emergency_contact.setter
+    def emergency_contact(self, value):
+        self._emergency_contact = value
 
 class FoodIntake(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     resident_id = db.Column(db.Integer, db.ForeignKey('resident.id'), nullable=False)
     date = db.Column(db.Date, nullable=False)
     meal_type = db.Column(db.String(20), nullable=False)
-    description = db.Column(db.Text)
+    _description = db.Column(EncryptedText)
+
+    @hybrid_property
+    def description(self):
+        return self._description
+
+    @description.setter
+    def description(self, value):
+        self._description = value
 
 class LiquidIntake(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     resident_id = db.Column(db.Integer, db.ForeignKey('resident.id'), nullable=False)
     date = db.Column(db.Date, nullable=False)
     time = db.Column(db.Time, nullable=False)
-    liquid_type = db.Column(db.String(50))
-    amount = db.Column(db.String(50))
+    _liquid_type = db.Column(EncryptedText)
+    _amount = db.Column(EncryptedText)
+
+    @hybrid_property
+    def liquid_type(self):
+        return self._liquid_type
+
+    @liquid_type.setter
+    def liquid_type(self, value):
+        self._liquid_type = value
+
+    @hybrid_property
+    def amount(self):
+        return self._amount
+
+    @amount.setter
+    def amount(self, value):
+        self._amount = value
 
 class BowelMovement(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -101,11 +171,27 @@ class Medication(db.Model):
     name = db.Column(db.String(100), nullable=False)
     dosage = db.Column(db.String(50))
     frequency = db.Column(db.String(50))
-    notes = db.Column(db.Text)  # Ensures no such column error
+    _notes = db.Column(EncryptedText)
     start_date = db.Column(db.Date)
     end_date = db.Column(db.Date)
-    form = db.Column(db.String(50))  # Added for medication form
-    common_uses = db.Column(db.Text)  # Added for common uses
+    form = db.Column(db.String(50))
+    _common_uses = db.Column(EncryptedText)
+
+    @hybrid_property
+    def notes(self):
+        return self._notes
+
+    @notes.setter
+    def notes(self, value):
+        self._notes = value
+
+    @hybrid_property
+    def common_uses(self):
+        return self._common_uses
+
+    @common_uses.setter
+    def common_uses(self, value):
+        self._common_uses = value
 
 class MedicationLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -118,10 +204,26 @@ class MedicationLog(db.Model):
 class Document(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     resident_id = db.Column(db.Integer, db.ForeignKey('resident.id'), nullable=False)
-    filename = db.Column(db.String(100), nullable=False)
-    name = db.Column(db.String(100), nullable=False)
+    _filename = db.Column(EncryptedText, nullable=False)
+    _name = db.Column(EncryptedText, nullable=False)
     upload_date = db.Column(db.Date, nullable=False)
     expiration_date = db.Column(db.Date)
+
+    @hybrid_property
+    def filename(self):
+        return self._filename
+
+    @filename.setter
+    def filename(self, value):
+        self._filename = value
+
+    @hybrid_property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        self._name = value
 
 class AuditLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -134,9 +236,25 @@ class MedicationCatalog(db.Model):
     name = db.Column(db.String(100), unique=True, nullable=False)
     default_dosage = db.Column(db.String(50))
     default_frequency = db.Column(db.String(50))
-    default_notes = db.Column(db.Text)
-    form = db.Column(db.String(50))  # Added for medication form
-    common_uses = db.Column(db.Text)  # Added for common uses
+    _default_notes = db.Column(EncryptedText)
+    form = db.Column(db.String(50))
+    _common_uses = db.Column(EncryptedText)
+
+    @hybrid_property
+    def default_notes(self):
+        return self._default_notes
+
+    @default_notes.setter
+    def default_notes(self, value):
+        self._default_notes = value
+
+    @hybrid_property
+    def common_uses(self):
+        return self._common_uses
+
+    @common_uses.setter
+    def common_uses(self, value):
+        self._common_uses = value
 
 # WTForms for CSRF-protected forms
 class LoginForm(FlaskForm):
@@ -207,9 +325,6 @@ class DocumentForm(FlaskForm):
     expiration_date = DateField('Expiration Date')
     submit = SubmitField('Upload Document')
 
-class ReportForm(FlaskForm):
-    export_pdf = SubmitField('Export as PDF')
-
 # Input validation and sanitization
 def sanitize_input(text):
     if text:
@@ -233,6 +348,13 @@ def send_alert_email(subject, body):
         mail.send(msg)
     except Exception as e:
         flash(f'Failed to send email: {str(e)}')
+
+# Context processor for current year
+@app.context_processor
+def utility_processor():
+    def get_current_year():
+        return datetime.now().year
+    return dict(current_year=get_current_year)
 
 # User loader for Flask-Login
 @login_manager.user_loader
@@ -319,7 +441,7 @@ def medication_suggestions():
         return jsonify([])
     suggestions = MedicationCatalog.query.filter(
         (MedicationCatalog.name.ilike(f'%{query}%')) |
-        (MedicationCatalog.common_uses.ilike(f'%{query}%'))
+        (MedicationCatalog._common_uses.ilike(f'%{cipher.encrypt(query.encode()).decode()}%'))
     ).order_by(MedicationCatalog.name).limit(20).all()
     return jsonify([{
         'id': med.id,
@@ -693,8 +815,12 @@ def documents(resident_id):
                 return redirect(url_for('documents', resident_id=resident_id))
             try:
                 filename = f"{resident_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}_{file.filename}"
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                new_doc = Document(resident_id=resident_id, filename=filename, name=name, upload_date=date.today(), expiration_date=expiration_date)
+                encrypted_filename = f"{filename}.enc"
+                file_data = file.read()
+                encrypted_data = cipher.encrypt(file_data)
+                with open(os.path.join(app.config['UPLOAD_FOLDER'], encrypted_filename), 'wb') as f:
+                    f.write(encrypted_data)
+                new_doc = Document(resident_id=resident_id, filename=encrypted_filename, name=name, upload_date=date.today(), expiration_date=expiration_date)
                 db.session.add(new_doc)
                 db.session.commit()
                 audit_log = AuditLog(user_id=current_user.id, action=f"Uploaded document {name} for {resident.name}")
@@ -727,7 +853,20 @@ def serve_document(filename):
     if current_user.role != 'admin':
         flash('Access denied')
         return redirect(url_for('home'))
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    try:
+        with open(os.path.join(app.config['UPLOAD_FOLDER'], filename), 'rb') as f:
+            encrypted_data = f.read()
+        decrypted_data = cipher.decrypt(encrypted_data)
+        original_filename = filename.replace('.enc', '')
+        return send_file(
+            BytesIO(decrypted_data),
+            download_name=original_filename,
+            as_attachment=True,
+            mimetype='application/octet-stream'
+        )
+    except Exception as e:
+        flash(f'Failed to serve document: {str(e)}')
+        return redirect(url_for('home'))
 
 @app.route('/resident/<int:resident_id>/report', methods=['GET', 'POST'])
 @login_required
@@ -774,7 +913,7 @@ def report(resident_id):
         pdf.drawString(100, y, "Food Intakes")
         y -= 20
         for food in food_intakes:
-            pdf.drawString(120, y, f"{food.date} - {food.meal_type.capitalize()}: {food.description}")
+            pdf.drawString(120, y, f"{food.date} - {food.meal_type.capitalize()}: {food.description or 'N/A'}")
             y -= 15
             if y < 50:
                 pdf.showPage()
@@ -784,7 +923,7 @@ def report(resident_id):
         pdf.drawString(100, y, "Liquid Intakes")
         y -= 20
         for liquid in liquid_intakes:
-            pdf.drawString(120, y, f"{liquid.date} {liquid.time}: {liquid.liquid_type} - {liquid.amount}")
+            pdf.drawString(120, y, f"{liquid.date} {liquid.time}: {liquid.liquid_type or 'N/A'} - {liquid.amount or 'N/A'}")
             y -= 15
             if y < 50:
                 pdf.showPage()
@@ -837,6 +976,7 @@ def report(resident_id):
 if __name__ == '__main__':
     with app.app_context():
         print("Creating database at afh.db...")
+        db.drop_all()  # Drop existing tables to avoid schema conflicts
         db.create_all()
         print("Database created!")
         if not User.query.filter_by(username='admin').first():
@@ -862,4 +1002,4 @@ if __name__ == '__main__':
             if not MedicationCatalog.query.filter_by(name=med['name']).first():
                 db.session.add(MedicationCatalog(**med))
         db.session.commit()
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=8080, debug=True)
