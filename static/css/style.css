@@ -125,3 +125,22 @@ canvas#mealChart {
 .card {
     animation: fadeIn 0.3s ease-in-out;
 }
+.dropdown {
+    position: absolute;
+    z-index: 1000;
+    background: #fff;
+    border: 1px solid #6b48ff;
+    border-radius: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    width: calc(100% - 2rem);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+.dropdown-item {
+    padding: 8px 16px;
+    cursor: pointer;
+}
+.dropdown-item:hover, .dropdown-item.selected {
+    background: #6b48ff;
+    color: #fff;
+}
