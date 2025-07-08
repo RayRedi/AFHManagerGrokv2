@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>Daily Logs for {{ resident.name }} - {{ log_date }}</h1>
+
+    <!-- Date Navigation -->
+    <div class="mb-3">
+        <a href="{{ url_for('daily_logs', resident_id=resident.id, date=prev_date) }}" class="btn btn-secondary">Previous Day</a>
+        <a href="{{ url_for('daily_logs', resident_id=resident.id, date=next_date) }}" class="btn btn-secondary">Next Day</a>
+    </div>
+
+    <!-- Daily Summary and Alerts -->
+    <div class="card">
+        <div class="card-header">Daily Summary</div>
+        <div class="card-body">
+            {% if missing_logs %}
+                <div class="alert alert-danger">
+                    <strong>Alerts:</strong>
+                    <ul>
+                        {% for log in missing_logs %}
+                            <li>{{ log }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% else %}
+                <p>All meals logged for today.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Food Intake -->
+    <div class="card">
+        <div class="card-header">Food Intakes</div>
+        <div class="card-body">
+            <ul>
+                {% for food in food_intakes %}
+                    <li>{{ food.meal_type|capitalize }}: {{ food.description }}</li>
+                {% endfor %}
+            </ul>
+            <form method="POST">
+                {{ food_form.hidden_tag() }}
+                <input type="hidden" name="add_food" value="1">
+                <div class="form-group">
+                    <label>{{ food_form.meal_type.label }}:</label>
+                    {{ food_form.meal_type(class="form-control") }}
+                </div>
+                <div class="form-group">
+                    <label>{{ food_form.description.label }}:</label>
+                    {{ food_form.description(class="form-control") }}
+                </div>
+                {{ food_form.submit(class="btn btn-primary") }}
+            </form>
+        </div>
+    </div>
+
+    <!-- Liquid Intake -->
+    <div class="card">
+        <div class="card-header">Liquid Intakes</div>
+        <div class="card-body">
+            <ul>
+                {% for liquid in liquid_intakes %}
+                    <li>{{ liquid.time }}: {{ liquid.liquid_type }} - {{ liquid.amount }}</li>
+                {% endfor %}
+            </ul>
+            <form method="POST">
+                {{ liquid_form.hidden_tag() }}
+                <input type="hidden" name="add_liquid" value="1">
+                <div class="form-group">
+                    <label>{{ liquid_form.time.label }}:</label>
+                    {{ liquid_form.time(class="form-control", type="time") }}
+                </div>
+                <div class="form-group">
+                    <label>{{ liquid_form.liquid_type.label }}:</label>
+                    {{ liquid_form.liquid_type(class="form-control") }}
+                </div>
+                <div class="form-group">
+                    <label>{{ liquid_form.amount.label }}:</label>
+                    {{ liquid_form.amount(class="form-control") }}
+                </div>
+                {{ liquid_form.submit(class="btn btn-primary") }}
+            </form>
+        </div>
+    </div>
+
+    <!-- Bowel Movements -->
+    <div class="card">
+        <div class="card-header">Bowel Movements</div>
+        <div class="card-body">
+            <ul>
+                {% for bowel in bowel_movements %}
+                    <li>{{ bowel.time }}: Size - {{ bowel.size }}, Consistency - {{ bowel.consistency }}</li>
+                {% endfor %}
+            </ul>
+            <form method="POST">
+                {{ bowel_form.hidden_tag() }}
+                <input type="hidden" name="add_bowel" value="1">
+                <div class="form-group">
+                    <label>{{ bowel_form.time.label }}:</label>
+                    {{ bowel_form.time(class="form-control", type="time") }}
+                </div>
+                <div class="form-group">
+                    <label>{{ bowel_form.size.label }}:</label>
+                    {{ bowel_form.size(class="form-control") }}
+                </div>
+                <div class="form-group">
+                    <label>{{ bowel_form.consistency.label }}:</label>
+                    {{ bowel_form.consistency(class="form-control") }}
+                </div>
+                {{ bowel_form.submit(class="btn btn-primary") }}
+            </form>
+        </div>
+    </div>
+
+    <!-- Urine Outputs -->
+    <div class="card">
+        <div class="card-header">Urine Outputs</div>
+        <div class="card-body">
+            <ul>
+                {% for urine in urine_outputs %}
+                    <li>{{ urine.time }}: {{ urine.output }}</li>
+                {% endfor %}
+            </ul>
+            <form method="POST">
+                {{ urine_form.hidden_tag() }}
+                <input type="hidden" name="add_urine" value="1">
+                <div class="form-group">
+                    <label>{{ urine_form.time.label }}:</label>
+                    {{ urine_form.time(class="form-control", type="time") }}
+                </div>
+                <div class="form-group">
+                    <label>{{ urine_form.output.label }}:</label>
+                    {{ urine_form.output(class="form-control") }}
+                </div>
+                {{ urine_form.submit(class="btn btn-primary") }}
+            </form>
+        </div>
+    </div>
+{% endblock %}

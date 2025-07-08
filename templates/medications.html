@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>Medications for {{ resident.name }}</h1>
+    <div class="card">
+        <div class="card-header">Current Medications</div>
+        <div class="card-body">
+            <ul>
+                {% for med in medications %}
+                    <li>
+                        {{ med.name }} - Dosage: {{ med.dosage or 'N/A' }}, Frequency: {{ med.frequency or 'N/A' }}
+                        (Start: {{ med.start_date }}, End: {{ med.end_date or 'N/A' }})
+                        {% if med.notes %} - Notes: {{ med.notes }}{% endif %}
+                        <form method="POST" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="delete_medication" value="1">
+                            <input type="hidden" name="medication_id" value="{{ med.id }}">
+                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this medication?')">Delete</button>
+                        </form>
+                    </li>
+                {% endfor %}
+            </ul>
+            <h3>Add New Medication</h3>
+            <form method="POST" id="medication_form_container">
+                {{ medication_form.hidden_tag() }}
+                <input type="hidden" name="add_medication" value="1">
+                <div class="form-group">
+                    <label for="medication_name">{{ medication_form.name.label }}:</label>
+                    {{ medication_form.name(class="form-control", id="medication_name", autocomplete="off") }}
+                </div>
+                <div class="form-group">
+                    <label>{{ medication_form.dosage.label }}:</label>
+                    {{ medication_form.dosage(class="form-control", id="medication_dosage") }}
+                </div>
+                <div class="form-group">
+                    <label>{{ medication_form.frequency.label }}:</label>
+                    {{ medication_form.frequency(class="form-control", id="medication_frequency") }}
+                </div>
+                <div class="form-group">
+                    <label>{{ medication_form.notes.label }}:</label>
+                    {{ medication_form.notes(class="form-control", id="medication_notes") }}
+                </div>
+                <div class="form-group">
+                    <label>{{ medication_form.start_date.label }}:</label>
+                    {{ medication_form.start_date(class="form-control") }}
+                </div>
+                <div class="form-group">
+                    <label>{{ medication_form.end_date.label }}:</label>
+                    {{ medication_form.end_date(class="form-control") }}
+                </div>
+                {{ medication_form.submit(class="btn btn-primary") }}
+            </form>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header">Medication Logs</div>
+        <div class="card-body">
+            <ul>
+                {% for log in medication_logs %}
+                    <li>{{ log.date }} {{ log.time }}: {{ Medication.query.get(log.medication_id).name }} - Administered</li>
+                {% endfor %}
+            </ul>
+            <form method="POST">
+                {{ log_form.hidden_tag() }}
+                <input type="hidden" name="log_dose" value="1">
+                <div class="form-group">
+                    <label>{{ log_form.medication_id.label }}:</label>
+                    {{ log_form.medication_id(class="form-control") }}
+                </div>
+                <div class="form-group">
+                    <label>{{ log_form.time.label }}:</label>
+                    {{ log_form.time(class="form-control", type="time") }}
+                </div>
+                {{ log_form.submit(class="btn btn-primary") }}
+            </form>
+        </div>
+    </div>
+{% endblock %}

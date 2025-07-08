@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>Documents for {{ resident.name }}</h1>
+    {% if expired_documents %}
+        <div class="alert alert-danger">
+            <strong>Expired Documents:</strong>
+            <ul>
+                {% for doc in expired_documents %}
+                    <li>{{ doc.name }} (Expired on {{ doc.expiration_date }})</li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+    <div class="card">
+        <div class="card-header">Documents</div>
+        <div class="card-body">
+            <ul>
+                {% for doc in documents %}
+                    <li>
+                        <a href="{{ url_for('serve_document', filename=doc.filename) }}">{{ doc.name }}</a> 
+                        (Uploaded: {{ doc.upload_date }}, Expires: {{ doc.expiration_date or 'N/A' }})
+                        <form method="POST" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="delete_document" value="1">
+                            <input type="hidden" name="document_id" value="{{ doc.id }}">
+                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this document?')">Delete</button>
+                        </form>
+                    </li>
+                {% endfor %}
+            </ul>
+            <form method="POST" enctype="multipart/form-data">
+                {{ form.hidden_tag() }}
+                <input type="hidden" name="add_document" value="1">
+                <div class="form-group">
+                    <label>{{ form.name.label }}:</label>
+                    {{ form.name(class="form-control") }}
+                </div>
+                <div class="form-group">
+                    <label>{{ form.file.label }}:</label>
+                    {{ form.file(class="form-control") }}
+                </div>
+                <div class="form-group">
+                    <label>{{ form.expiration_date.label }}:</label>
+                    {{ form.expiration_date(class="form-control") }}
+                </div>
+                {{ form.submit(class="btn btn-primary") }}
+            </form>
+        </div>
+    </div>
+{% endblock %}

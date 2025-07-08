@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>Dashboard</h1>
+    <div class="card">
+        <div class="card-body">
+            <h2>Summary</h2>
+            <p><strong>Total Residents:</strong> {{ total_residents }}</p>
+            {% if alerts %}
+                <div class="alert alert-danger">
+                    <strong>Alerts:</strong>
+                    <ul>
+                        {% for alert in alerts %}
+                            <li>{{ alert }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% else %}
+                <p>No alerts at this time.</p>
+            {% endif %}
+        </div>
+    </div>
+    <h2>Residents</h2>
+    <div class="row">
+        {% for resident in residents %}
+            <div class="col-md-4 col-sm-6 col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ resident.name }}</h5>
+                        <a href="{{ url_for('resident_profile', resident_id=resident.id) }}" class="btn btn-primary">View Profile</a>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endblock %}

@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>Report for {{ resident.name }} ({{ start_date }} to {{ end_date }})</h1>
+    <div class="card">
+        <div class="card-header">Select Date Range</div>
+        <div class="card-body">
+            <form method="GET">
+                <div class="form-group">
+                    <label>Start Date:</label>
+                    <input type="date" name="start_date" class="form-control" value="{{ start_date.isoformat() }}" required>
+                </div>
+                <div class="form-group">
+                    <label>End Date:</label>
+                    <input type="date" name="end_date" class="form-control" value="{{ end_date.isoformat() }}" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Generate Report</button>
+            </form>
+            <form method="POST">
+                {{ form.hidden_tag() }}
+                {{ form.export_pdf(class="btn btn-secondary mt-2") }}
+            </form>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header">Meal Intake Chart</div>
+        <div class="card-body">
+            <canvas id="mealChart" style="max-height: 300px;"></canvas>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header">Food Intakes</div>
+        <div class="card-body">
+            <ul>
+                {% for food in food_intakes %}
+                    <li>{{ food.date }} - {{ food.meal_type|capitalize }}: {{ food.description }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header">Liquid Intakes</div>
+        <div class="card-body">
+            <ul>
+                {% for liquid in liquid_intakes %}
+                    <li>{{ liquid.date }} {{ liquid.time }}: {{ liquid.liquid_type }} - {{ liquid.amount }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header">Bowel Movements</div>
+        <div class="card-body">
+            <ul>
+                {% for bowel in bowel_movements %}
+                    <li>{{ bowel.date }} {{ bowel.time }}: Size - {{ bowel.size }}, Consistency - {{ bowel.consistency }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header">Urine Outputs</div>
+        <div class="card-body">
+            <ul>
+                {% for urine in urine_outputs %}
+                    <li>{{ urine.date }} {{ urine.time }}: {{ urine.output }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header">Medication Logs</div>
+        <div class="card-body">
+            <ul>
+                {% for log in medication_logs %}
+                    <li>{{ log.date }} {{ log.time }}: {{ Medication.query.get(log.medication_id).name }} - Administered</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const ctx = document.getElementById('mealChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: {{ chart_labels|safe }},
+                datasets: [
+                    {
+                        label: 'Breakfast',
+                        data: {{ chart_data.breakfast|safe }},
+                        backgroundColor: 'rgba(107, 114, 142, 0.5)',
+                        borderColor: 'rgba(107, 114, 142, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Lunch',
+                        data: {{ chart_data.lunch|safe }},
+                        backgroundColor: 'rgba(244, 114, 182, 0.5)',
+                        borderColor: 'rgba(244, 114, 182, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Dinner',
+                        data: {{ chart_data.dinner|safe }},
+                        backgroundColor: 'rgba(139, 92, 246, 0.5)',
+                        borderColor: 'rgba(139, 92, 246, 1)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Number of Meals', font: { family: 'Poppins', size: 14 } }
+                    },
+                    x: {
+                        title: { display: true, text: 'Date', font: { family: 'Poppins', size: 14 } }
+                    }
+                },
+                plugins: {
+                    legend: { position: 'top', labels: { font: { family: 'Poppins', size: 12 } } },
+                    tooltip: { bodyFont: { family: 'Poppins' }, titleFont: { family: 'Poppins' } }
+                }
+            }
+        });
+    </script>
+{% endblock %}
