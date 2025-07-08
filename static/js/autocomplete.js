@@ -12,6 +12,11 @@ function initializeMedicationSearch(inputId, dropdownId) {
     const searchInput = document.getElementById(inputId);
     const dropdown = document.getElementById(dropdownId);
     const detailsDiv = document.getElementById('medication-details');
+    const dosageInput = document.getElementById('dosage');
+    const frequencyInput = document.getElementById('frequency');
+    const notesInput = document.getElementById('notes');
+    const formInput = document.getElementById('form');
+    const commonUsesInput = document.getElementById('common_uses');
     let currentMedications = [];
     let selectedIndex = -1;
 
@@ -84,6 +89,11 @@ function initializeMedicationSearch(inputId, dropdownId) {
                     <p><strong>Common Uses:</strong> ${med.common_uses || 'N/A'}</p>
                 `;
             }
+            if (dosageInput) dosageInput.value = med.dosage || '';
+            if (frequencyInput) frequencyInput.value = med.frequency || '';
+            if (notesInput) notesInput.value = med.notes || '';
+            if (formInput) formInput.value = med.form || '';
+            if (commonUsesInput) commonUsesInput.value = med.common_uses || '';
             hideDropdown();
         }
     }
@@ -138,4 +148,5 @@ function initializeMedicationSearch(inputId, dropdownId) {
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
     initializeMedicationSearch('med-search', 'medication-dropdown-home');
+    initializeMedicationSearch('name', 'medication-dropdown');
 });

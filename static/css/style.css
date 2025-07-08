@@ -144,3 +144,12 @@ canvas#mealChart {
     background: #6b48ff;
     color: #fff;
 }
+@media (max-width: 576px) {
+    .dropdown {
+        width: 100%;
+        font-size: 14px;
+    }
+    .form-control {
+        font-size: 14px;
+    }
+}
