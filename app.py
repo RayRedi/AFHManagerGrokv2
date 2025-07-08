@@ -16,6 +16,16 @@ import json
 
 # Initialize Flask app
 app = Flask(__name__)
+# ... (all existing imports and code from previous app.py remain unchanged)
+# ... (all existing app config, models, forms, and routes remain unchanged)
+# Context processor to inject current year
+@app.context_processor
+def utility_processor():
+    def get_current_year():
+        return datetime.now().year
+    return dict(current_year=get_current_year)
+
+# ... (rest of the app.py code remains unchanged, including routes and if __name__ == '__main__': block)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///afh.db'  # Updated to root directory
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
@@ -852,4 +862,4 @@ if __name__ == '__main__':
             if not MedicationCatalog.query.filter_by(name=med['name']).first():
                 db.session.add(MedicationCatalog(**med))
         db.session.commit()
-    app.run(host='0.0.0.0', port=8080, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)

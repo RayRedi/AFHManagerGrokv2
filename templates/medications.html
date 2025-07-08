@@ -1,65 +1,97 @@
 {% extends "base.html" %}
+{% block title %}Medications - {{ resident.name }}{% endblock %}
 {% block content %}
-<div class="container mt-4">
-    <h2 class="mb-4">Medications for {{ resident.name }}</h2>
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="display-5 fw-bold text-dark">{{ resident.name }}'s Medications</h1>
+        <p class="lead text-muted">Manage medications and log doses.</p>
+    </div>
+</div>
 
-    <!-- Add Medication Form -->
-    <div class="card mb-4">
-        <div class="card-header bg-primary text-white">Add New Medication</div>
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('medications', resident_id=resident.id) }}">
-                {{ medication_form.hidden_tag() }}
-                <div class="form-group position-relative">
-                    <label for="name">Medication Name</label>
-                    <input type="text" class="form-control" id="name" name="name" autocomplete="off" required>
-                    <div id="medication-dropdown" class="dropdown"></div>
-                </div>
-                <div class="form-group">
-                    <label for="dosage">Dosage</label>
+<!-- Add Medication -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h3 class="card-title fw-bold text-dark">Add Medication</h3>
+        <form method="POST" action="{{ url_for('medications', resident_id=resident.id) }}">
+            {{ medication_form.hidden_tag() }}
+            <div class="mb-3 position-relative">
+                <label for="name" class="form-label">Medication Name</label>
+                {{ medication_form.name(class="form-control form-control-lg rounded-pill", id="name", placeholder="Search medications (e.g., Lisinopril, hypertension)", **{'aria-label': 'Medication Name'}) }}
+                <div id="medication-dropdown" class="dropdown"></div>
+            </div>
+            <div id="medication-details" class="mb-3"></div>
+            <div class="row">
+                <div class="col-12 col-md-6 mb-3">
+                    <label for="dosage" class="form-label">Dosage</label>
                     {{ medication_form.dosage(class="form-control", id="dosage") }}
                 </div>
-                <div class="form-group">
-                    <label for="frequency">Frequency</label>
+                <div class="col-12 col-md-6 mb-3">
+                    <label for="frequency" class="form-label">Frequency</label>
                     {{ medication_form.frequency(class="form-control", id="frequency") }}
                 </div>
-                <div class="form-group">
-                    <label for="notes">Notes</label>
-                    {{ medication_form.notes(class="form-control", id="notes") }}
+            </div>
+            <div class="mb-3">
+                <label for="notes" class="form-label">Notes</label>
+                {{ medication_form.notes(class="form-control") }}
+            </div>
+            <div class="row">
+                <div class="col-12 col-md-6 mb-3">
+                    <label for="form" class="form-label">Form</label>
+                    {{ medication_form.form(class="form-control", id="form") }}
                 </div>
-                <div class="form-group">
-                    <label for="form">Form</label>
-                    <input type="text" class="form-control" id="form" name="form" value="{{ medication_form.data.form or '' }}">
+                <div class="col-12 col-md-6 mb-3">
+                    <label for="common_uses" class="form-label">Common Uses</label>
+                    {{ medication_form.common_uses(class="form-control", id="common_uses") }}
                 </div>
-                <div class="form-group">
-                    <label for="common_uses">Common Uses</label>
-                    <textarea class="form-control" id="common_uses" name="common_uses">{{ medication_form.data.common_uses or '' }}</textarea>
+            </div>
+            <div class="row">
+                <div class="col-12 col-md-6 mb-3">
+                    <label for="start_date" class="form-label">Start Date</label>
+                    {{ medication_form.start_date(class="form-control") }}
                 </div>
-                <div class="form-group">
-                    <label for="start_date">Start Date</label>
-                    {{ medication_form.start_date(class="form-control", type="date") }}
+                <div class="col-12 col-md-6 mb-3">
+                    <label for="end_date" class="form-label">End Date</label>
+                    {{ medication_form.end_date(class="form-control") }}
                 </div>
-                <div class="form-group">
-                    <label for="end_date">End Date</label>
-                    {{ medication_form.end_date(class="form-control", type="date") }}
-                </div>
-                <button type="submit" name="add_medication" class="btn btn-primary">Save Medication</button>
-            </form>
-        </div>
+            </div>
+            {{ medication_form.submit(class="btn btn-primary btn-lg w-100", style="background: #6b48ff; border: none;", value="Add Medication", name="add_medication") }}
+        </form>
     </div>
+</div>
 
-    <!-- Current Medications -->
-    <div class="card mb-4">
-        <div class="card-header bg-primary text-white">Current Medications</div>
-        <div class="card-body">
-            {% if medications %}
+<!-- Log Dose -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h3 class="card-title fw-bold text-dark">Log Dose</h3>
+        <form method="POST" action="{{ url_for('medications', resident_id=resident.id) }}">
+            {{ log_form.hidden_tag() }}
+            <div class="row">
+                <div class="col-12 col-md-6 mb-3">
+                    <label for="medication_id" class="form-label">Medication</label>
+                    {{ log_form.medication_id(class="form-control") }}
+                </div>
+                <div class="col-12 col-md-6 mb-3">
+                    <label for="time" class="form-label">Time</label>
+                    {{ log_form.time(class="form-control", placeholder="HH:MM") }}
+                </div>
+            </div>
+            {{ log_form.submit(class="btn btn-primary btn-lg w-100", style="background: #00c4b4; border: none;", value="Log Dose", name="log_dose") }}
+        </form>
+    </div>
+</div>
+
+<!-- Medication List -->
+<div class="card shadow-sm">
+    <div class="card-body">
+        <h3 class="card-title fw-bold text-dark">Current Medications</h3>
+        {% if medications %}
             <div class="table-responsive">
-                <table class="table table-striped">
+                <table class="table table-hover">
                     <thead>
                         <tr>
                             <th>Name</th>
                             <th>Dosage</th>
                             <th>Frequency</th>
-                            <th>Notes</th>
                             <th>Form</th>
                             <th>Common Uses</th>
                             <th>Start Date</th>
@@ -69,82 +101,61 @@
                     </thead>
                     <tbody>
                         {% for med in medications %}
-                        <tr>
-                            <td>{{ med.name }}</td>
-                            <td>{{ med.dosage or 'N/A' }}</td>
-                            <td>{{ med.frequency or 'N/A' }}</td>
-                            <td>{{ med.notes or 'N/A' }}</td>
-                            <td>{{ med.form or 'N/A' }}</td>
-                            <td>{{ med.common_uses or 'N/A' }}</td>
-                            <td>{{ med.start_date.strftime('%Y-%m-%d') if med.start_date else 'N/A' }}</td>
-                            <td>{{ med.end_date.strftime('%Y-%m-%d') if med.end_date else 'N/A' }}</td>
-                            <td>
-                                <form method="POST" action="{{ url_for('medications', resident_id=resident.id) }}" onsubmit="return confirm('Are you sure you want to delete this medication?');">
-                                    <input type="hidden" name="medication_id" value="{{ med.id }}">
-                                    <button type="submit" name="delete_medication" class="btn btn-danger btn-sm">Delete</button>
-                                </form>
-                            </td>
-                        </tr>
+                            <tr>
+                                <td>{{ med.name }}</td>
+                                <td>{{ med.dosage or 'N/A' }}</td>
+                                <td>{{ med.frequency or 'N/A' }}</td>
+                                <td>{{ med.form or 'N/A' }}</td>
+                                <td>{{ med.common_uses or 'N/A' }}</td>
+                                <td>{{ med.start_date.strftime('%Y-%m-%d') if med.start_date else 'N/A' }}</td>
+                                <td>{{ med.end_date.strftime('%Y-%m-%d') if med.end_date else 'N/A' }}</td>
+                                <td>
+                                    <form action="{{ url_for('medications', resident_id=resident.id) }}" method="POST" class="d-inline">
+                                        <input type="hidden" name="medication_id" value="{{ med.id }}">
+                                        <button type="submit" name="delete_medication" class="btn btn-outline-danger btn-sm" onclick="return confirm('Are you sure you want to delete {{ med.name }}?');">Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-            {% else %}
-            <p>No medications recorded for {{ resident.name }}.</p>
-            {% endif %}
-        </div>
+        {% else %}
+            <p class="text-muted">No medications added yet.</p>
+        {% endif %}
     </div>
+</div>
 
-    <!-- Log Medication Dose -->
-    <div class="card mb-4">
-        <div class="card-header bg-primary text-white">Log Medication Dose</div>
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('medications', resident_id=resident.id) }}">
-                {{ log_form.hidden_tag() }}
-                <div class="form-group">
-                    <label for="medication_id">Medication</label>
-                    {{ log_form.medication_id(class="form-control") }}
-                </div>
-                <div class="form-group">
-                    <label for="time">Time</label>
-                    {{ log_form.time(class="form-control", type="time") }}
-                </div>
-                <button type="submit" name="log_dose" class="btn btn-primary">Log Dose</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- Medication Logs -->
-    <div class="card">
-        <div class="card-header bg-primary text-white">Medication Logs</div>
-        <div class="card-body">
-            {% if medication_logs %}
+<!-- Medication Logs -->
+<div class="card shadow-sm mt-4">
+    <div class="card-body">
+        <h3 class="card-title fw-bold text-dark">Medication Logs</h3>
+        {% if medication_logs %}
             <div class="table-responsive">
-                <table class="table table-striped">
+                <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th>Medication</th>
                             <th>Date</th>
                             <th>Time</th>
+                            <th>Medication</th>
                             <th>Status</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for log in medication_logs %}
-                        <tr>
-                            <td>{{ Medication.query.get(log.medication_id).name }}</td>
-                            <td>{{ log.date.strftime('%Y-%m-%d') }}</td>
-                            <td>{{ log.time.strftime('%H:%M') }}</td>
-                            <td>{{ 'Administered' if log.administered else 'Not Administered' }}</td>
-                        </tr>
+                            <tr>
+                                <td>{{ log.date.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ log.time.strftime('%H:%M') }}</td>
+                                <td>{{ Medication.query.get(log.medication_id).name }}</td>
+                                <td>{{ 'Administered' if log.administered else 'Missed' }}</td>
+                            </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-            {% else %}
-            <p>No medication logs for {{ resident.name }}.</p>
-            {% endif %}
-        </div>
+        {% else %}
+            <p class="text-muted">No medication logs yet.</p>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
