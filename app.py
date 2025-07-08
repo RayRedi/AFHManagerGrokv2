@@ -852,4 +852,4 @@ if __name__ == '__main__':
             if not MedicationCatalog.query.filter_by(name=med['name']).first():
                 db.session.add(MedicationCatalog(**med))
         db.session.commit()
-    app.run(host='0.0.0.0', port=8080, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
