@@ -16,8 +16,7 @@ import json
 
 # Initialize Flask app
 app = Flask(__name__)
-app.config[
-    'SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/afh.db'  # Updated to match your Replit path
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///afh.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
 app.config['UPLOAD_FOLDER'] = 'documents'
@@ -36,7 +35,6 @@ mail = Mail(app)
 
 # Ensure upload folder exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs('instance', exist_ok=True)  # Ensure instance/ directory exists
 
 # Set up Flask-Login
 login_manager = LoginManager()
@@ -1098,7 +1096,7 @@ def report(resident_id):
 # Run the app and initialize database with sample data
 if __name__ == '__main__':
     with app.app_context():
-        print("Creating database at instance/afh.db...")
+        print("Creating database at afh.db...")
         db.create_all()
         print("Database created!")
         if not User.query.filter_by(username='admin').first():
