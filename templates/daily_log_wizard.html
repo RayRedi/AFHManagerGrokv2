@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Daily Log Wizard - {{ resident.name }}{% endblock %}
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="display-5 fw-bold text-dark">Daily Log for {{ resident.name }}</h1>
+        <p class="lead text-muted">Complete the daily log for {{ current_meal|capitalize }}.</p>
+    </div>
+</div>
+
+<!-- Progress Bar -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="progress" style="height: 30px;">
+            {% for step in steps %}
+                <div class="progress-bar {{ 'bg-primary' if loop.index0 <= current_step_index else 'bg-light' }}" 
+                     role="progressbar" 
+                     style="width: {{ 100 / steps|length }}%;"
+                     aria-valuenow="{{ loop.index0 * (100 / steps|length) }}"
+                     aria-valuemin="0" 
+                     aria-valuemax="100">
+                    {{ step.name }} ({{ step.meal|capitalize }})
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Form -->
+<div class="card shadow-sm">
+    <div class="card-body">
+        <h3 class="card-title fw-bold text-dark">
+            Step {{ current_step }}: {{ steps[current_step_index].name }} ({{ current_meal|capitalize }})
+        </h3>
+        <form method="POST" action="{{ url_for('daily_log_wizard', resident_id=resident.id) }}">
+            {{ form.hidden_tag() }}
+            {% if current_step == 1 and current_meal == 'breakfast' %}
+                <!-- Step 1: Vitals -->
+                <div class="row">
+                    <div class="col-12 col-md-4 mb-3">
+                        <label for="systolic" class="form-label">Systolic Blood Pressure</label>
+                        {{ form.systolic(class="form-control", id="systolic", **{'aria-label': 'Systolic Blood Pressure'}) }}
+                    </div>
+                    <div class="col-12 col-md-4 mb-3">
+                        <label for="diastolic" class="form-label">Diastolic Blood Pressure</label>
+                        {{ form.diastolic(class="form-control", id="diastolic", **{'aria-label': 'Diastolic Blood Pressure'}) }}
+                    </div>
+                    <div class="col-12 col-md-4 mb-3">
+                        <label for="pulse" class="form-label">Pulse</label>
+                        {{ form.pulse(class="form-control", id="pulse", **{'aria-label': 'Pulse'}) }}
+                    </div>
+                </div>
+            {% elif current_step == 2 %}
+                <!-- Step 2: Food Intake -->
+                <div class="mb-3">
+                    <label for="intake_level" class="form-label">Food Intake</label>
+                    {{ form.intake_level(class="form-control", id="intake_level", **{'aria-label': 'Food Intake'}) }}
+                </div>
+                <div class="mb-3" id="notes-container" {% if form.intake_level.data != 'Other' %}style="display: none;"{% endif %}>
+                    <label for="notes" class="form-label">Notes (for Other)</label>
+                    {{ form.notes(class="form-control", id="notes", **{'aria-label': 'Notes'}) }}
+                </div>
+            {% elif current_step == 3 %}
+                <!-- Step 3: Liquid Intake -->
+                <div class="mb-3">
+                    <label for="liquid_intake" class="form-label">Liquid Intake</label>
+                    {{ form.liquid_intake(class="form-control", id="liquid_intake", **{'aria-label': 'Liquid Intake'}) }}
+                </div>
+            {% elif current_step == 4 %}
+                <!-- Step 4: Bowel Movement -->
+                <div class="row">
+                    <div class="col-12 col-md-6 mb-3">
+                        <label for="size" class="form-label">Size</label>
+                        {{ form.size(class="form-control", id="size", **{'aria-label': 'Bowel Movement Size'}) }}
+                    </div>
+                    <div class="col-12 col-md-6 mb-3">
+                        <label for="consistency" class="form-label">Consistency</label>
+                        {{ form.consistency(class="form-control", id="consistency", **{'aria-label': 'Bowel Movement Consistency'}) }}
+                    </div>
+                </div>
+            {% elif current_step == 5 %}
+                <!-- Step 5: Urine Output -->
+                <div class="mb-3">
+                    <label for="urine_output" class="form-label">Urine Output</label>
+                    {{ form.urine_output(class="form-control", id="urine_output", **{'aria-label': 'Urine Output'}) }}
+                </div>
+            {% endif %}
+            <div class="d-flex justify-content-between">
+                {% if current_step_index > 0 %}
+                    <button type="submit" name="back" class="btn btn-outline-secondary btn-lg">Back</button>
+                {% else %}
+                    <div></div>
+                {% endif %}
+                <div>
+                    {{ form.skip(class="btn btn-outline-primary btn-lg me-2") }}
+                    {% if current_step_index == steps|length - 1 %}
+                        {{ form.submit(class="btn btn-primary btn-lg", style="background: #6b48ff; border: none;") }}
+                    {% else %}
+                        <button type="submit" class="btn btn-primary btn-lg" style="background: #6b48ff; border: none;">Next</button>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Show/hide notes field based on intake_level
+    document.getElementById('intake_level')?.addEventListener('change', function() {
+        const notesContainer = document.getElementById('notes-container');
+        if (this.value === 'Other') {
+            notesContainer.style.display = 'block';
+        } else {
+            notesContainer.style.display = 'none';
+        }
+    });
+</script>
+{% endblock %}

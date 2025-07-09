@@ -1,9 +1,9 @@
 import os
-from flask import Flask, render_template, redirect, url_for, request, flash, send_from_directory, send_file, jsonify
+from flask import Flask, render_template, redirect, url_for, request, flash, send_from_directory, send_file, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, current_user, logout_user
 from flask_wtf import FlaskForm, CSRFProtect
-from wtforms import StringField, PasswordField, SelectField, TextAreaField, DateField, TimeField, SubmitField, FileField
+from wtforms import StringField, PasswordField, SelectField, TextAreaField, DateField, IntegerField, HiddenField, FileField, SubmitField
 from wtforms.validators import DataRequired, Length
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, date, timedelta
@@ -111,59 +111,52 @@ class Resident(db.Model):
     def emergency_contact(self, value):
         self._emergency_contact = value
 
+class Vitals(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    resident_id = db.Column(db.Integer, db.ForeignKey('resident.id'), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    meal_type = db.Column(db.String(20), nullable=False)  # 'breakfast'
+    systolic = db.Column(db.Integer, nullable=False)
+    diastolic = db.Column(db.Integer, nullable=False)
+    pulse = db.Column(db.Integer, nullable=False)
+
 class FoodIntake(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     resident_id = db.Column(db.Integer, db.ForeignKey('resident.id'), nullable=False)
     date = db.Column(db.Date, nullable=False)
-    meal_type = db.Column(db.String(20), nullable=False)
-    _description = db.Column(EncryptedText)
+    meal_type = db.Column(db.String(20), nullable=False)  # 'breakfast', 'lunch', 'dinner'
+    intake_level = db.Column(db.String(20), nullable=False)  # '25%', '50%', '75%', '100%', 'Ensure', 'Other'
+    _notes = db.Column(EncryptedText)  # Encrypted notes for 'Other'
 
     @hybrid_property
-    def description(self):
-        return self._description
+    def notes(self):
+        return self._notes
 
-    @description.setter
-    def description(self, value):
-        self._description = value
+    @notes.setter
+    def notes(self, value):
+        self._notes = value
 
 class LiquidIntake(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     resident_id = db.Column(db.Integer, db.ForeignKey('resident.id'), nullable=False)
     date = db.Column(db.Date, nullable=False)
-    time = db.Column(db.Time, nullable=False)
-    _liquid_type = db.Column(EncryptedText)
-    _amount = db.Column(EncryptedText)
-
-    @hybrid_property
-    def liquid_type(self):
-        return self._liquid_type
-
-    @liquid_type.setter
-    def liquid_type(self, value):
-        self._liquid_type = value
-
-    @hybrid_property
-    def amount(self):
-        return self._amount
-
-    @amount.setter
-    def amount(self, value):
-        self._amount = value
+    meal_type = db.Column(db.String(20), nullable=False)  # 'breakfast', 'lunch', 'dinner'
+    intake = db.Column(db.String(20), nullable=False)  # 'Yes', 'No', 'Partial'
 
 class BowelMovement(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     resident_id = db.Column(db.Integer, db.ForeignKey('resident.id'), nullable=False)
     date = db.Column(db.Date, nullable=False)
-    time = db.Column(db.Time, nullable=False)
-    size = db.Column(db.String(20))
-    consistency = db.Column(db.String(20))
+    meal_type = db.Column(db.String(20), nullable=False)  # 'breakfast', 'lunch', 'dinner'
+    size = db.Column(db.String(20), nullable=False)  # 'Small', 'Medium', 'Large'
+    consistency = db.Column(db.String(20), nullable=False)  # 'Soft', 'Medium', 'Hard'
 
 class UrineOutput(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     resident_id = db.Column(db.Integer, db.ForeignKey('resident.id'), nullable=False)
     date = db.Column(db.Date, nullable=False)
-    time = db.Column(db.Time, nullable=False)
-    output = db.Column(db.String(20))
+    meal_type = db.Column(db.String(20), nullable=False)  # 'breakfast', 'lunch', 'dinner'
+    output = db.Column(db.String(20), nullable=False)  # 'Yes', 'No'
 
 class Medication(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -281,27 +274,35 @@ class AddResidentForm(FlaskForm):
     emergency_contact = StringField('Emergency Contact', validators=[Length(max=100)])
     submit = SubmitField('Save Resident')
 
-class FoodIntakeForm(FlaskForm):
-    meal_type = SelectField('Meal Type', choices=[('breakfast', 'Breakfast'), ('lunch', 'Lunch'), ('dinner', 'Dinner')], validators=[DataRequired()])
-    description = TextAreaField('Description')
-    submit = SubmitField('Add Food Intake')
-
-class LiquidIntakeForm(FlaskForm):
-    time = StringField('Time', validators=[DataRequired()])
-    liquid_type = StringField('Liquid Type', validators=[Length(max=50)])
-    amount = StringField('Amount', validators=[Length(max=50)])
-    submit = SubmitField('Add Liquid Intake')
-
-class BowelMovementForm(FlaskForm):
-    time = StringField('Time', validators=[DataRequired()])
-    size = SelectField('Size', choices=[('small', 'Small'), ('medium', 'Medium'), ('large', 'Large')], validators=[DataRequired()])
-    consistency = SelectField('Consistency', choices=[('soft', 'Soft'), ('medium', 'Medium'), ('hard', 'Hard')], validators=[DataRequired()])
-    submit = SubmitField('Add Bowel Movement')
-
-class UrineOutputForm(FlaskForm):
-    time = StringField('Time', validators=[DataRequired()])
-    output = SelectField('Output', choices=[('yes', 'Yes'), ('no', 'No'), ('no output', 'No Output')], validators=[DataRequired()])
-    submit = SubmitField('Add Urine Output')
+class DailyLogWizardForm(FlaskForm):
+    step = HiddenField('Step', default='1')
+    meal_type = HiddenField('Meal Type', default='breakfast')
+    # Step 1: Vitals (Breakfast only)
+    systolic = IntegerField('Systolic Blood Pressure', validators=[DataRequired()], render_kw={'placeholder': 'e.g., 120'})
+    diastolic = IntegerField('Diastolic Blood Pressure', validators=[DataRequired()], render_kw={'placeholder': 'e.g., 80'})
+    pulse = IntegerField('Pulse', validators=[DataRequired()], render_kw={'placeholder': 'e.g., 70'})
+    # Step 2: Food Intake
+    intake_level = SelectField('Food Intake', choices=[
+        ('25%', '25%'), ('50%', '50%'), ('75%', '75%'), ('100%', '100%'), ('Ensure', 'Ensure'), ('Other', 'Other')
+    ], validators=[DataRequired()])
+    notes = TextAreaField('Notes (for Other)', render_kw={'rows': 4})
+    # Step 3: Liquid Intake
+    liquid_intake = SelectField('Liquid Intake', choices=[
+        ('Yes', 'Yes'), ('No', 'No'), ('Partial', 'Partial')
+    ], validators=[DataRequired()])
+    # Step 4: Bowel Movement
+    size = SelectField('Size', choices=[
+        ('Small', 'Small'), ('Medium', 'Medium'), ('Large', 'Large')
+    ], validators=[DataRequired()])
+    consistency = SelectField('Consistency', choices=[
+        ('Soft', 'Soft'), ('Medium', 'Medium'), ('Hard', 'Hard')
+    ], validators=[DataRequired()])
+    # Step 5: Urine Output
+    urine_output = SelectField('Urine Output', choices=[
+        ('Yes', 'Yes'), ('No', 'No')
+    ], validators=[DataRequired()])
+    submit = SubmitField('Submit')
+    skip = SubmitField('Skip')
 
 class MedicationForm(FlaskForm):
     name = StringField('Name', validators=[DataRequired(), Length(max=100)])
@@ -324,6 +325,11 @@ class DocumentForm(FlaskForm):
     file = FileField('File (PDF or Image)', validators=[DataRequired()])
     expiration_date = DateField('Expiration Date')
     submit = SubmitField('Upload Document')
+
+class ReportForm(FlaskForm):
+    start_date = DateField('Start Date', default=date.today() - timedelta(days=7))
+    end_date = DateField('End Date', default=date.today)
+    export_pdf = SubmitField('Export to PDF')
 
 # Input validation and sanitization
 def sanitize_input(text):
@@ -636,6 +642,178 @@ def resident_profile(resident_id):
     resident = Resident.query.get_or_404(resident_id)
     return render_template('resident_profile.html', resident=resident)
 
+@app.route('/resident/<int:resident_id>/daily-log-wizard', methods=['GET', 'POST'])
+@login_required
+def daily_log_wizard(resident_id):
+    if current_user.role not in ['admin', 'caregiver']:
+        flash('Access denied')
+        return redirect(url_for('home'))
+
+    resident = Resident.query.get_or_404(resident_id)
+    form = DailyLogWizardForm()
+    today = date.today()
+
+    # Initialize session data
+    if 'daily_log_wizard' not in session:
+        session['daily_log_wizard'] = {
+            'breakfast': {'vitals': {}, 'food': {}, 'liquid': {}, 'bowel': {}, 'urine': {}},
+            'lunch': {'food': {}, 'liquid': {}, 'bowel': {}, 'urine': {}},
+            'dinner': {'food': {}, 'liquid': {}, 'bowel': {}, 'urine': {}}
+        }
+
+    # Determine current step and meal
+    current_step = int(form.step.data or '1')
+    current_meal = form.meal_type.data or 'breakfast'
+    steps = [
+        {'id': 1, 'name': 'Vitals', 'meal': 'breakfast'},
+        {'id': 2, 'name': 'Food Intake', 'meal': 'breakfast'},
+        {'id': 3, 'name': 'Liquid Intake', 'meal': 'breakfast'},
+        {'id': 4, 'name': 'Bowel Movement', 'meal': 'breakfast'},
+        {'id': 5, 'name': 'Urine Output', 'meal': 'breakfast'},
+        {'id': 2, 'name': 'Food Intake', 'meal': 'lunch'},
+        {'id': 3, 'name': 'Liquid Intake', 'meal': 'lunch'},
+        {'id': 4, 'name': 'Bowel Movement', 'meal': 'lunch'},
+        {'id': 5, 'name': 'Urine Output', 'meal': 'lunch'},
+        {'id': 2, 'name': 'Food Intake', 'meal': 'dinner'},
+        {'id': 3, 'name': 'Liquid Intake', 'meal': 'dinner'},
+        {'id': 4, 'name': 'Bowel Movement', 'meal': 'dinner'},
+        {'id': 5, 'name': 'Urine Output', 'meal': 'dinner'}
+    ]
+    current_step_index = next(i for i, s in enumerate(steps) if s['id'] == current_step and s['meal'] == current_meal)
+
+    if request.method == 'POST':
+        if form.validate_on_submit():
+            # Handle Skip
+            if form.skip.data:
+                # Move to next step without saving data
+                next_step_index = min(current_step_index + 1, len(steps) - 1)
+                next_step = steps[next_step_index]
+                form.step.data = str(next_step['id'])
+                form.meal_type.data = next_step['meal']
+                return redirect(url_for('daily_log_wizard', resident_id=resident_id))
+
+            # Save form data to session
+            if current_step == 1 and current_meal == 'breakfast':
+                session['daily_log_wizard']['breakfast']['vitals'] = {
+                    'systolic': form.systolic.data,
+                    'diastolic': form.diastolic.data,
+                    'pulse': form.pulse.data
+                }
+            elif current_step == 2:
+                session['daily_log_wizard'][current_meal]['food'] = {
+                    'intake_level': form.intake_level.data,
+                    'notes': sanitize_input(form.notes.data) if form.intake_level.data == 'Other' else None
+                }
+            elif current_step == 3:
+                session['daily_log_wizard'][current_meal]['liquid'] = {
+                    'intake': form.liquid_intake.data
+                }
+            elif current_step == 4:
+                session['daily_log_wizard'][current_meal]['bowel'] = {
+                    'size': form.size.data,
+                    'consistency': form.consistency.data
+                }
+            elif current_step == 5:
+                session['daily_log_wizard'][current_meal]['urine'] = {
+                    'output': form.urine_output.data
+                }
+
+            # If Submit on final step, save to database
+            if form.submit.data and current_step_index == len(steps) - 1:
+                # Save Vitals (breakfast only)
+                if session['daily_log_wizard']['breakfast']['vitals']:
+                    vitals = Vitals(
+                        resident_id=resident_id,
+                        date=today,
+                        meal_type='breakfast',
+                        systolic=session['daily_log_wizard']['breakfast']['vitals']['systolic'],
+                        diastolic=session['daily_log_wizard']['breakfast']['vitals']['diastolic'],
+                        pulse=session['daily_log_wizard']['breakfast']['vitals']['pulse']
+                    )
+                    db.session.add(vitals)
+
+                # Save Food, Liquid, Bowel, Urine for each meal
+                for meal in ['breakfast', 'lunch', 'dinner']:
+                    # Food Intake
+                    if session['daily_log_wizard'][meal]['food']:
+                        food = FoodIntake(
+                            resident_id=resident_id,
+                            date=today,
+                            meal_type=meal,
+                            intake_level=session['daily_log_wizard'][meal]['food']['intake_level'],
+                            notes=session['daily_log_wizard'][meal]['food']['notes']
+                        )
+                        db.session.add(food)
+                    # Liquid Intake
+                    if session['daily_log_wizard'][meal]['liquid']:
+                        liquid = LiquidIntake(
+                            resident_id=resident_id,
+                            date=today,
+                            meal_type=meal,
+                            intake=session['daily_log_wizard'][meal]['liquid']['intake']
+                        )
+                        db.session.add(liquid)
+                    # Bowel Movement
+                    if session['daily_log_wizard'][meal]['bowel']:
+                        bowel = BowelMovement(
+                            resident_id=resident_id,
+                            date=today,
+                            meal_type=meal,
+                            size=session['daily_log_wizard'][meal]['bowel']['size'],
+                            consistency=session['daily_log_wizard'][meal]['bowel']['consistency']
+                        )
+                        db.session.add(bowel)
+                    # Urine Output
+                    if session['daily_log_wizard'][meal]['urine']:
+                        urine = UrineOutput(
+                            resident_id=resident_id,
+                            date=today,
+                            meal_type=meal,
+                            output=session['daily_log_wizard'][meal]['urine']['output']
+                        )
+                        db.session.add(urine)
+
+                db.session.commit()
+                audit_log = AuditLog(user_id=current_user.id, action=f"Completed daily log for {resident.name}")
+                db.session.add(audit_log)
+                db.session.commit()
+                session.pop('daily_log_wizard', None)  # Clear session
+                flash('Daily log saved successfully.')
+                return redirect(url_for('resident_profile', resident_id=resident_id))
+
+            # Move to next step
+            next_step_index = min(current_step_index + 1, len(steps) - 1)
+            next_step = steps[next_step_index]
+            form.step.data = str(next_step['id'])
+            form.meal_type.data = next_step['meal']
+            return redirect(url_for('daily_log_wizard', resident_id=resident_id))
+
+        # Handle Back button
+        if 'back' in request.form:
+            prev_step_index = max(current_step_index - 1, 0)
+            prev_step = steps[prev_step_index]
+            form.step.data = str(prev_step['id'])
+            form.meal_type.data = prev_step['meal']
+            return redirect(url_for('daily_log_wizard', resident_id=resident_id))
+
+    # Populate form with session data
+    if current_step == 1 and current_meal == 'breakfast':
+        form.systolic.data = session['daily_log_wizard']['breakfast']['vitals'].get('systolic')
+        form.diastolic.data = session['daily_log_wizard']['breakfast']['vitals'].get('diastolic')
+        form.pulse.data = session['daily_log_wizard']['breakfast']['vitals'].get('pulse')
+    elif current_step == 2:
+        form.intake_level.data = session['daily_log_wizard'][current_meal]['food'].get('intake_level')
+        form.notes.data = session['daily_log_wizard'][current_meal]['food'].get('notes')
+    elif current_step == 3:
+        form.liquid_intake.data = session['daily_log_wizard'][current_meal]['liquid'].get('intake')
+    elif current_step == 4:
+        form.size.data = session['daily_log_wizard'][current_meal]['bowel'].get('size')
+        form.consistency.data = session['daily_log_wizard'][current_meal]['bowel'].get('consistency')
+    elif current_step == 5:
+        form.urine_output.data = session['daily_log_wizard'][current_meal]['urine'].get('output')
+
+    return render_template('daily_log_wizard.html', resident=resident, form=form, current_step=current_step, current_meal=current_meal, steps=steps, current_step_index=current_step_index)
+
 @app.route('/resident/<int:resident_id>/logs', methods=['GET', 'POST'])
 @login_required
 def daily_logs(resident_id):
@@ -670,7 +848,7 @@ def daily_logs(resident_id):
             if meal_type not in meal_types:
                 flash('Invalid meal type')
                 return redirect(url_for('daily_logs', resident_id=resident_id, date=log_date.isoformat()))
-            new_food = FoodIntake(resident_id=resident_id, date=log_date, meal_type=meal_type, description=description)
+            new_food = FoodIntake(resident_id=resident_id, date=log_date, meal_type=meal_type, intake_level=description)
             db.session.add(new_food)
             db.session.commit()
             audit_log = AuditLog(user_id=current_user.id, action=f"Added food intake for {resident.name}")
@@ -680,8 +858,7 @@ def daily_logs(resident_id):
         elif liquid_form.validate_on_submit() and 'add_liquid' in request.form and current_user.role in ['admin', 'caregiver']:
             liquid_type = sanitize_input(liquid_form.liquid_type.data)
             amount = sanitize_input(liquid_form.amount.data)
-            time = datetime.strptime(liquid_form.time.data, '%H:%M').time()
-            new_liquid = LiquidIntake(resident_id=resident_id, date=log_date, time=time, liquid_type=liquid_type, amount=amount)
+            new_liquid = LiquidIntake(resident_id=resident_id, date=log_date, meal_type='breakfast', intake=liquid_type or amount)
             db.session.add(new_liquid)
             db.session.commit()
             audit_log = AuditLog(user_id=current_user.id, action=f"Added liquid intake for {resident.name}")
@@ -689,13 +866,12 @@ def daily_logs(resident_id):
             db.session.commit()
             flash('Liquid intake added successfully.')
         elif bowel_form.validate_on_submit() and 'add_bowel' in request.form and current_user.role in ['admin', 'caregiver']:
-            time = datetime.strptime(bowel_form.time.data, '%H:%M').time()
             size = bowel_form.size.data
             consistency = bowel_form.consistency.data
-            if size not in ['small', 'medium', 'large'] or consistency not in ['soft', 'medium', 'hard']:
+            if size not in ['Small', 'Medium', 'Large'] or consistency not in ['Soft', 'Medium', 'Hard']:
                 flash('Invalid bowel movement data')
                 return redirect(url_for('daily_logs', resident_id=resident_id, date=log_date.isoformat()))
-            new_bowel = BowelMovement(resident_id=resident_id, date=log_date, time=time, size=size, consistency=consistency)
+            new_bowel = BowelMovement(resident_id=resident_id, date=log_date, meal_type='breakfast', size=size, consistency=consistency)
             db.session.add(new_bowel)
             db.session.commit()
             audit_log = AuditLog(user_id=current_user.id, action=f"Added bowel movement for {resident.name}")
@@ -703,12 +879,11 @@ def daily_logs(resident_id):
             db.session.commit()
             flash('Bowel movement added successfully.')
         elif urine_form.validate_on_submit() and 'add_urine' in request.form and current_user.role in ['admin', 'caregiver']:
-            time = datetime.strptime(urine_form.time.data, '%H:%M').time()
             output = urine_form.output.data
-            if output not in ['yes', 'no', 'no output']:
+            if output not in ['Yes', 'No', 'No Output']:
                 flash('Invalid urine output data')
                 return redirect(url_for('daily_logs', resident_id=resident_id, date=log_date.isoformat()))
-            new_urine = UrineOutput(resident_id=resident_id, date=log_date, time=time, output=output)
+            new_urine = UrineOutput(resident_id=resident_id, date=log_date, meal_type='breakfast', output=output)
             db.session.add(new_urine)
             db.session.commit()
             audit_log = AuditLog(user_id=current_user.id, action=f"Added urine output for {resident.name}")
@@ -913,7 +1088,10 @@ def report(resident_id):
         pdf.drawString(100, y, "Food Intakes")
         y -= 20
         for food in food_intakes:
-            pdf.drawString(120, y, f"{food.date} - {food.meal_type.capitalize()}: {food.description or 'N/A'}")
+            pdf.drawString(120, y, f"{food.date} - {food.meal_type.capitalize()}: {food.intake_level or 'N/A'}")
+            if food.notes:
+                pdf.drawString(120, y - 15, f"Notes: {food.notes}")
+                y -= 15
             y -= 15
             if y < 50:
                 pdf.showPage()
@@ -923,7 +1101,7 @@ def report(resident_id):
         pdf.drawString(100, y, "Liquid Intakes")
         y -= 20
         for liquid in liquid_intakes:
-            pdf.drawString(120, y, f"{liquid.date} {liquid.time}: {liquid.liquid_type or 'N/A'} - {liquid.amount or 'N/A'}")
+            pdf.drawString(120, y, f"{liquid.date} {liquid.meal_type.capitalize()}: {liquid.intake or 'N/A'}")
             y -= 15
             if y < 50:
                 pdf.showPage()
@@ -932,8 +1110,10 @@ def report(resident_id):
         y -= 20
         pdf.drawString(100, y, "Bowel Movements")
         y -= 20
+        pdf.drawString(100, y, "Bowel Movements")
+        y -= 20
         for bowel in bowel_movements:
-            pdf.drawString(120, y, f"{bowel.date} {bowel.time}: Size - {bowel.size}, Consistency - {bowel.consistency}")
+            pdf.drawString(120, y, f"{bowel.date} {bowel.meal_type.capitalize()}: Size - {bowel.size}, Consistency - {bowel.consistency}")
             y -= 15
             if y < 50:
                 pdf.showPage()
@@ -943,7 +1123,7 @@ def report(resident_id):
         pdf.drawString(100, y, "Urine Outputs")
         y -= 20
         for urine in urine_outputs:
-            pdf.drawString(120, y, f"{urine.date} {urine.time}: {urine.output}")
+            pdf.drawString(120, y, f"{urine.date} {urine.meal_type.capitalize()}: {urine.output}")
             y -= 15
             if y < 50:
                 pdf.showPage()
