@@ -127,8 +127,8 @@ class UrineOutput(db.Model):
 
 class MedicationCatalog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), unique=True, nullable=False)  # Generic name
-    brand_name = db.Column(db.String(100))  # Brand name
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    brand_name = db.Column(db.String(100))
     default_dosage = db.Column(db.String(50))
     default_frequency = db.Column(db.String(50))
     _default_notes = db.Column(EncryptedText)
