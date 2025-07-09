@@ -89,7 +89,8 @@ class Medication(db.Model):
     dosage = db.Column(db.String(50))
     frequency = db.Column(db.String(50))
     _notes = db.Column(EncryptedText)
-    expiration_date = db.Column(db.Date, nullable=False)
+    start_date = db.Column(db.Date)
+    end_date = db.Column(db.Date)
     form = db.Column(db.String(50))
     _common_uses = db.Column(EncryptedText)
 
@@ -234,7 +235,8 @@ class MedicationForm(FlaskForm):
     notes = TextAreaField('Notes')
     form = StringField('Form', validators=[Length(max=50)])
     common_uses = TextAreaField('Common Uses')
-    expiration_date = DateField('Expiration Date', validators=[DataRequired()])
+    start_date = DateField('Start Date', validators=[DataRequired()])
+    end_date = DateField('End Date')
     submit = SubmitField('Save Medication')
 
 class MedicationLogForm(FlaskForm):
@@ -977,12 +979,13 @@ def medications(resident_id):
             notes = sanitize_input(medication_form.notes.data)
             form = sanitize_input(medication_form.form.data)
             common_uses = sanitize_input(medication_form.common_uses.data)
-            expiration_date = medication_form.expiration_date.data
+            start_date = medication_form.start_date.data
+            end_date = medication_form.end_date.data
             if not name:
                 flash('Medication name is required')
                 return redirect(url_for('medications', resident_id=resident_id))
             new_med = Medication(resident_id=resident_id, name=name, dosage=dosage, frequency=frequency,
-                                 notes=notes, form=form, common_uses=common_uses, expiration_date=expiration_date)
+                                 notes=notes, form=form, common_uses=common_uses, start_date=start_date, end_date=end_date)
             db.session.add(new_med)
             # Add to MedicationCatalog if not already present
             if not MedicationCatalog.query.filter_by(name=name).first():
@@ -1215,23 +1218,6 @@ if __name__ == '__main__':
         print("Creating database at afh.db...")
         db.create_all()
         print("Database created!")
-        
-        # Add migration for expiration_date column if it doesn't exist
-        try:
-            # Test if expiration_date column exists
-            db.session.execute("SELECT expiration_date FROM medication LIMIT 1")
-            print("expiration_date column already exists")
-        except Exception as e:
-            if "no such column" in str(e):
-                print("Adding expiration_date column to medication table...")
-                try:
-                    db.session.execute("ALTER TABLE medication ADD COLUMN expiration_date DATE")
-                    db.session.commit()
-                    print("expiration_date column added successfully!")
-                except Exception as alter_error:
-                    print(f"Error adding expiration_date column: {alter_error}")
-            else:
-                print(f"Unexpected error: {e}")
         if not User.query.filter_by(username='admin').first():
             admin = User(username='admin', password_hash=generate_password_hash('admin123'), role='admin')
             db.session.add(admin)

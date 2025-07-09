@@ -125,16 +125,25 @@
                         
                         <div class="row">
                             <div class="col-12 col-md-6 mb-3">
-                                <label for="expiration_date" class="form-label fw-semibold">
-                                    Expiration Date <span class="text-danger">*</span>
+                                <label for="start_date" class="form-label fw-semibold">
+                                    Start Date <span class="text-danger">*</span>
                                 </label>
                                 <div class="input-group">
                                     <span class="input-group-text">
-                                        <i class="fas fa-calendar-times text-muted"></i>
+                                        <i class="fas fa-calendar-plus text-muted"></i>
                                     </span>
-                                    {{ medication_form.expiration_date(class="form-control") }}
+                                    {{ medication_form.start_date(class="form-control") }}
                                 </div>
-                                <small class="text-muted">When this medication expires</small>
+                            </div>
+                            <div class="col-12 col-md-6 mb-3">
+                                <label for="end_date" class="form-label fw-semibold">End Date</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-calendar-minus text-muted"></i>
+                                    </span>
+                                    {{ medication_form.end_date(class="form-control") }}
+                                </div>
+                                <small class="text-muted">Leave blank if ongoing</small>
                             </div>
                         </div>
                     </div>
@@ -184,7 +193,8 @@
                             <th>Frequency</th>
                             <th>Form</th>
                             <th>Common Uses</th>
-                            <th>Expiration Date</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -196,7 +206,8 @@
                                 <td>{{ med.frequency or 'N/A' }}</td>
                                 <td>{{ med.form or 'N/A' }}</td>
                                 <td>{{ med.common_uses or 'N/A' }}</td>
-                                <td>{{ med.expiration_date.strftime('%Y-%m-%d') if med.expiration_date else 'N/A' }}</td>
+                                <td>{{ med.start_date.strftime('%Y-%m-%d') if med.start_date else 'N/A' }}</td>
+                                <td>{{ med.end_date.strftime('%Y-%m-%d') if med.end_date else 'N/A' }}</td>
                                 <td>
                                     <form action="{{ url_for('medications', resident_id=resident.id) }}" method="POST" class="d-inline">
                                         <input type="hidden" name="medication_id" value="{{ med.id }}">
