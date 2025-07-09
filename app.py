@@ -54,6 +54,7 @@ csrf = CSRFProtect(app)
 # Custom SQLAlchemy type for encrypted fields
 class EncryptedText(TypeDecorator):
     impl = Text
+    cache_ok = True
 
     def process_bind_param(self, value, dialect):
         if value is None:
@@ -79,7 +80,7 @@ class Resident(db.Model):
     _medical_info = db.Column(EncryptedText)
     _emergency_contact = db.Column(EncryptedText)
 
-    @hybrid_property
+    @property
     def name(self):
         return self._name
 
@@ -87,15 +88,26 @@ class Resident(db.Model):
     def name(self, value):
         self._name = value
 
-    @hybrid_property
+    @property
     def dob(self):
-        return datetime.strptime(self._dob, '%Y-%m-%d').date() if self._dob else None
+        if self._dob:
+            try:
+                return datetime.strptime(self._dob, '%Y-%m-%d').date()
+            except (ValueError, TypeError):
+                return None
+        return None
 
     @dob.setter
     def dob(self, value):
-        self._dob = value.strftime('%Y-%m-%d') if value else None
+        if value:
+            if isinstance(value, str):
+                self._dob = value
+            else:
+                self._dob = value.strftime('%Y-%m-%d')
+        else:
+            self._dob = None
 
-    @hybrid_property
+    @property
     def medical_info(self):
         return self._medical_info
 
@@ -103,7 +115,7 @@ class Resident(db.Model):
     def medical_info(self, value):
         self._medical_info = value
 
-    @hybrid_property
+    @property
     def emergency_contact(self):
         return self._emergency_contact
 
