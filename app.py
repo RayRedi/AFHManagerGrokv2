@@ -17,6 +17,7 @@ from cryptography.fernet import Fernet
 from sqlalchemy import TypeDecorator, Text
 from sqlalchemy.ext.hybrid import hybrid_property
 import sqlite3
+from medications_data import ELDERLY_MEDS
 # Initialize Flask app
 app = Flask(__name__)
 def init_medications():
@@ -35,9 +36,6 @@ def init_medications():
     # Add sample data only if empty
     c.execute('SELECT COUNT(*) FROM medications')
     if c.fetchone()[0] == 0:
-        elderly_meds = [
-            # Cardiovascular medications
-            ('Lipitor', 'Atorvastatin', 'High cholesterol, cardiovascular disease prevention'),
             ('Crestor', 'Rosuvastatin', 'High cholesterol, heart disease prevention'),
             ('Zocor', 'Simvastatin', 'High cholesterol'),
             ('Pravachol', 'Pravastatin', 'High cholesterol'),
@@ -1799,10 +1797,7 @@ def init_medications():
             ('Gas Relief (Simethicone)', 'Simethicone', 'Gas, bloating, flatulence'),
             ('Guaifenesin', 'Guaifenesin', 'Cough, chest congestion'),
             ('Milk of Magnesia', 'Magnesium hydroxide', 'Constipation, heartburn'),
-            ('Ondansetron', 'Ondansetron', 'Nausea, vomiting, chemotherapy nausea'),
-        ]
-        
-        c.executemany('INSERT INTO medications (brand_name, generic_name, common_uses) VALUES (?, ?, ?)', elderly_meds)
+            c.executemany('INSERT INTO medications (brand_name, generic_name, common_uses) VALUES (?, ?, ?)', ELDERLY_MEDS)
         conn.commit()
 
     conn.close()
