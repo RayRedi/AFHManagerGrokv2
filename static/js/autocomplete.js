@@ -146,10 +146,16 @@ function initializeMedicationSearch(inputId, dropdownId) {
             if (detailsDiv) detailsDiv.innerHTML = '';
         }
     });
+    }
 }
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
-    initializeMedicationSearch('med-search', 'medication-dropdown-home');
-    initializeMedicationSearch('name', 'medication-dropdown');
+    // Initialize medication search for different forms
+    if (document.getElementById('med-search')) {
+        initializeMedicationSearch('med-search', 'medication-dropdown-home');
+    }
+    if (document.getElementById('name')) {
+        initializeMedicationSearch('name', 'medication-dropdown');
+    }
 });
