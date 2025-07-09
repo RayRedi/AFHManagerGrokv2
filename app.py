@@ -1289,6 +1289,22 @@ if __name__ == '__main__':
             if not MedicationCatalog.query.filter_by(name=med['name']).first():
                 db.session.add(MedicationCatalog(**med))
         db.session.commit()
+        
+        # Sync ELDERLY_MEDS to MedicationCatalog
+        print("Syncing medications from ELDERLY_MEDS...")
+        for brand_name, generic_name, common_uses in ELDERLY_MEDS:
+            if not MedicationCatalog.query.filter_by(name=brand_name).first():
+                catalog_entry = MedicationCatalog(
+                    name=brand_name,
+                    default_dosage='',
+                    default_frequency='',
+                    default_notes=f'Generic: {generic_name}',
+                    form='',
+                    common_uses=common_uses
+                )
+                db.session.add(catalog_entry)
+        db.session.commit()
+        print("Medication sync complete!")
     
     import os
     port = int(os.environ.get('PORT', 8080))
