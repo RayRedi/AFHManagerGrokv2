@@ -16,6 +16,7 @@ import json
 from cryptography.fernet import Fernet
 from sqlalchemy import TypeDecorator, Text
 from sqlalchemy.ext.hybrid import hybrid_property
+from forms import FoodIntakeForm, LiquidIntakeForm, BowelMovementForm, UrineOutputForm
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -848,10 +849,25 @@ def daily_logs(resident_id):
     prev_date = (log_date - timedelta(days=1)).isoformat()
     next_date = (log_date + timedelta(days=1)).isoformat()
 
-    food_form = FoodIntakeForm()
-    liquid_form = LiquidIntakeForm()
-    bowel_form = BowelMovementForm()
-    urine_form = UrineOutputForm()
+    class FoodIntakeForm(FlaskForm):
+        date = DateField('Date', validators=[DataRequired()])
+        meal = StringField('Meal', validators=[DataRequired()])
+        submit = SubmitField('Submit')
+    class LiquidIntakeForm(FlaskForm):
+        date = DateField('Date', validators=[DataRequired()])
+        liquid = StringField('Liquid Type', validators=[DataRequired()])
+        amount = StringField('Amount', validators=[DataRequired()])
+        submit = SubmitField('Submit')
+
+    class BowelMovementForm(FlaskForm):
+        date = DateField('Date', validators=[DataRequired()])
+        description = StringField('Description', validators=[DataRequired()])
+        submit = SubmitField('Submit')
+
+    class UrineOutputForm(FlaskForm):
+        date = DateField('Date', validators=[DataRequired()])
+        amount = StringField('Amount', validators=[DataRequired()])
+        submit = SubmitField('Submit')
 
     if request.method == 'POST':
         if food_form.validate_on_submit() and 'add_food' in request.form and current_user.role in ['admin', 'caregiver']:
