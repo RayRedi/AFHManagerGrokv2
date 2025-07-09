@@ -181,25 +181,19 @@ class MealWizard {
     init() {
         // Meal card click handlers
         const startMealBtns = document.querySelectorAll('.start-meal-btn');
-        if (startMealBtns) {
+        if (startMealBtns && startMealBtns.length > 0) {
             startMealBtns.forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const meal = e.target.dataset.meal;
-                    this.startMealWizard(meal);
-                });
+                if (btn) {
+                    btn.addEventListener('click', (e) => {
+                        const meal = e.target.dataset.meal;
+                        this.startMealWizard(meal);
+                    });
+                }
             });
         }
 
-        // Wizard navigation
-        const nextBtn = document.getElementById('nextBtn');
-        const prevBtn = document.getElementById('prevBtn');
-        const skipBtn = document.getElementById('skipBtn');
-        const submitBtn = document.getElementById('submitBtn');
-
-        if (nextBtn) nextBtn.addEventListener('click', () => this.nextStep());
-        if (prevBtn) prevBtn.addEventListener('click', () => this.prevStep());
-        if (skipBtn) skipBtn.addEventListener('click', () => this.skipStep());
-        if (submitBtn) submitBtn.addEventListener('click', () => this.submitForm());
+        // Wizard navigation - these elements don't exist until modal is opened
+        // Will be handled in startMealWizard method
     }
 
     startMealWizard(meal) {
@@ -216,6 +210,33 @@ class MealWizard {
         
         this.renderStep();
         this.updateProgress();
+        
+        // Add event listeners for wizard navigation
+        const nextBtn = document.getElementById('nextBtn');
+        const prevBtn = document.getElementById('prevBtn');
+        const skipBtn = document.getElementById('skipBtn');
+        const submitBtn = document.getElementById('submitBtn');
+
+        if (nextBtn) {
+            nextBtn.removeEventListener('click', this.nextStepHandler);
+            this.nextStepHandler = () => this.nextStep();
+            nextBtn.addEventListener('click', this.nextStepHandler);
+        }
+        if (prevBtn) {
+            prevBtn.removeEventListener('click', this.prevStepHandler);
+            this.prevStepHandler = () => this.prevStep();
+            prevBtn.addEventListener('click', this.prevStepHandler);
+        }
+        if (skipBtn) {
+            skipBtn.removeEventListener('click', this.skipStepHandler);
+            this.skipStepHandler = () => this.skipStep();
+            skipBtn.addEventListener('click', this.skipStepHandler);
+        }
+        if (submitBtn) {
+            submitBtn.removeEventListener('click', this.submitFormHandler);
+            this.submitFormHandler = () => this.submitForm();
+            submitBtn.addEventListener('click', this.submitFormHandler);
+        }
         
         const modalElement = document.getElementById('mealWizardModal');
         if (modalElement && typeof bootstrap !== 'undefined') {
@@ -253,6 +274,11 @@ class MealWizard {
                                    placeholder="e.g., 70" value="${this.formData.pulse || ''}">
                         </div>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" id="vitals_notes" name="vitals_notes" rows="3" 
+                                  placeholder="Any additional notes about vitals...">${this.formData.vitals_notes || ''}</textarea>
+                    </div>
                 `;
                 break;
             case 2: // Food Intake
@@ -269,8 +295,13 @@ class MealWizard {
                             <option value="Other" ${this.formData.intake_level === 'Other' ? 'selected' : ''}>Other</option>
                         </select>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" id="food_notes" name="food_notes" rows="3" 
+                                  placeholder="Any additional notes about food intake...">${this.formData.food_notes || ''}</textarea>
+                    </div>
                     <div class="mb-3" id="notesContainer" style="display: ${this.formData.intake_level === 'Other' ? 'block' : 'none'};">
-                        <label class="form-label">Notes (for Other)</label>
+                        <label class="form-label">Additional Notes (for Other)</label>
                         <textarea class="form-control" id="notes" name="notes" rows="3">${this.formData.notes || ''}</textarea>
                     </div>
                 `;
@@ -309,6 +340,11 @@ class MealWizard {
                             </div>
                         </div>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" id="liquid_notes" name="liquid_notes" rows="3" 
+                                  placeholder="Any additional notes about liquid intake...">${this.formData.liquid_notes || ''}</textarea>
+                    </div>
                 `;
                 break;
             case 4: // Bowel Movement
@@ -333,6 +369,11 @@ class MealWizard {
                             </select>
                         </div>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" id="bowel_notes" name="bowel_notes" rows="3" 
+                                  placeholder="Any additional notes about bowel movement...">${this.formData.bowel_notes || ''}</textarea>
+                    </div>
                 `;
                 break;
             case 5: // Urine Output
@@ -344,6 +385,11 @@ class MealWizard {
                             <option value="Yes" ${this.formData.urine_output === 'Yes' ? 'selected' : ''}>Yes</option>
                             <option value="No" ${this.formData.urine_output === 'No' ? 'selected' : ''}>No</option>
                         </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" id="urine_notes" name="urine_notes" rows="3" 
+                                  placeholder="Any additional notes about urine output...">${this.formData.urine_notes || ''}</textarea>
                     </div>
                 `;
                 break;
@@ -392,38 +438,48 @@ class MealWizard {
                 const systolic = document.getElementById('systolic');
                 const diastolic = document.getElementById('diastolic');
                 const pulse = document.getElementById('pulse');
+                const vitalsNotes = document.getElementById('vitals_notes');
                 
                 if (systolic) this.formData.systolic = systolic.value;
                 if (diastolic) this.formData.diastolic = diastolic.value;
                 if (pulse) this.formData.pulse = pulse.value;
+                if (vitalsNotes) this.formData.vitals_notes = vitalsNotes.value;
                 break;
             case 2: // Food Intake
                 const intakeLevel = document.getElementById('intake_level');
                 const notes = document.getElementById('notes');
+                const foodNotes = document.getElementById('food_notes');
                 
                 if (intakeLevel) this.formData.intake_level = intakeLevel.value;
                 if (notes) this.formData.notes = notes.value;
+                if (foodNotes) this.formData.food_notes = foodNotes.value;
                 break;
             case 3: // Liquid Intake
                 const liquid1 = document.getElementById('liquid_1');
                 const liquid2 = document.getElementById('liquid_2');
                 const liquid3 = document.getElementById('liquid_3');
+                const liquidNotes = document.getElementById('liquid_notes');
                 
                 if (liquid1) this.formData.liquid_1 = liquid1.value;
                 if (liquid2) this.formData.liquid_2 = liquid2.value;
                 if (liquid3) this.formData.liquid_3 = liquid3.value;
+                if (liquidNotes) this.formData.liquid_notes = liquidNotes.value;
                 break;
             case 4: // Bowel Movement
                 const size = document.getElementById('size');
                 const consistency = document.getElementById('consistency');
+                const bowelNotes = document.getElementById('bowel_notes');
                 
                 if (size) this.formData.size = size.value;
                 if (consistency) this.formData.consistency = consistency.value;
+                if (bowelNotes) this.formData.bowel_notes = bowelNotes.value;
                 break;
             case 5: // Urine Output
                 const urineOutput = document.getElementById('urine_output');
+                const urineNotes = document.getElementById('urine_notes');
                 
                 if (urineOutput) this.formData.urine_output = urineOutput.value;
+                if (urineNotes) this.formData.urine_notes = urineNotes.value;
                 break;
         }
     }
