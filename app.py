@@ -1215,6 +1215,23 @@ if __name__ == '__main__':
         print("Creating database at afh.db...")
         db.create_all()
         print("Database created!")
+        
+        # Add migration for expiration_date column if it doesn't exist
+        try:
+            # Test if expiration_date column exists
+            db.session.execute("SELECT expiration_date FROM medication LIMIT 1")
+            print("expiration_date column already exists")
+        except Exception as e:
+            if "no such column" in str(e):
+                print("Adding expiration_date column to medication table...")
+                try:
+                    db.session.execute("ALTER TABLE medication ADD COLUMN expiration_date DATE")
+                    db.session.commit()
+                    print("expiration_date column added successfully!")
+                except Exception as alter_error:
+                    print(f"Error adding expiration_date column: {alter_error}")
+            else:
+                print(f"Unexpected error: {e}")
         if not User.query.filter_by(username='admin').first():
             admin = User(username='admin', password_hash=generate_password_hash('admin123'), role='admin')
             db.session.add(admin)
