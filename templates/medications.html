@@ -16,8 +16,14 @@
             {{ medication_form.hidden_tag() }}
             <div class="mb-3 position-relative">
                 <label for="name" class="form-label">Medication Name</label>
-                {{ medication_form.name(class="form-control form-control-lg rounded-pill", id="name", placeholder="Search medications (e.g., Lisinopril, hypertension)", **{'aria-label': 'Medication Name'}) }}
+                <div class="input-group">
+                    {{ medication_form.name(class="form-control form-control-lg", id="name", placeholder="Start typing to search medications... (e.g., Tylenol, Lipitor, Acetaminophen)", **{'aria-label': 'Medication Name'}) }}
+                    <span class="input-group-text">
+                        <i class="fas fa-search"></i>
+                    </span>
+                </div>
                 <div id="medication-dropdown" class="dropdown"></div>
+                <small class="form-text text-muted">Search by brand name, generic name, or condition</small>
             </div>
             <div id="medication-details" class="mb-3"></div>
             <div class="row">

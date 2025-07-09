@@ -55,25 +55,49 @@ body {
 
 .dropdown {
     position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     z-index: 1000;
-    background: #fff;
-    border: 1px solid #6b48ff;
-    border-radius: 8px;
-    max-height: 200px;
+    max-height: 300px;
     overflow-y: auto;
-    width: calc(100% - 2rem);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    display: none;
 }
 
 .dropdown-item {
-    padding: 8px 16px;
+    padding: 12px;
     cursor: pointer;
-    font-size: 16px;
+    border-bottom: 1px solid #eee;
+    transition: background-color 0.2s;
 }
 
 .dropdown-item:hover, .dropdown-item.selected {
-    background: #6b48ff;
-    color: #fff;
+    background-color: #f8f9fa;
+}
+
+.dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.medication-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.medication-name {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 2px;
+}
+
+.medication-uses {
+    font-size: 0.85em;
+    color: #666;
+    font-style: italic;
 }
 
 .alert {
@@ -358,27 +382,27 @@ body {
     .meal-card {
         margin-bottom: 15px;
     }
-    
+
     .meal-icon {
         font-size: 2rem !important;
     }
-    
+
     .step-indicators .badge {
         font-size: 9px;
         padding: 3px 6px;
     }
-    
+
     #stepContent {
         min-height: 250px;
         padding: 15px;
     }
-    
+
     #stepContent .form-control,
     #stepContent .form-select {
         font-size: 14px;
         padding: 10px;
     }
-    
+
     .modal-body .btn {
         padding: 8px 16px;
         font-size: 14px;
@@ -390,45 +414,45 @@ body {
         font-size: 14px;
         padding: 12px;
     }
-    
+
     .accordion-button .badge {
         font-size: 10px;
         padding: 2px 6px;
     }
-    
+
     .card-title {
         font-size: 1.1rem;
     }
-    
+
     .display-5 {
         font-size: 1.6rem;
     }
-    
+
     .btn-group {
         flex-direction: column;
         width: 100%;
     }
-    
+
     .btn-group .btn {
         margin-bottom: 5px;
     }
-    
+
     .meal-card .card-body {
         padding: 15px;
     }
-    
+
     .meal-card h3 {
         font-size: 1.3rem;
     }
-    
+
     .modal-dialog {
         margin: 10px;
     }
-    
+
     #wizardProgress {
         height: 25px;
     }
-    
+
     #progressText {
         font-size: 12px;
     }

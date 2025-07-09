@@ -1,4 +1,3 @@
-
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import TypeDecorator, Text
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -19,12 +18,12 @@ class EncryptedText(TypeDecorator):
     impl = Text
     cache_ok = True
 
-    def process_bind_param(self, value, dialect):
+    def process_bind_param(self, self, value, dialect):
         if value is None:
             return None
         return cipher.encrypt(value.encode()).decode()
 
-    def process_result_value(self, value, dialect):
+    def process_result_value(self, self, value, dialect):
         if value is None:
             return None
         return cipher.decrypt(value.encode()).decode()
@@ -125,3 +124,13 @@ class UrineOutput(db.Model):
     date = db.Column(db.Date, nullable=False)
     meal_type = db.Column(db.String(20), nullable=False)  # 'breakfast', 'lunch', 'dinner'
     output = db.Column(db.String(20), nullable=False)  # 'Yes', 'No'
+
+class MedicationCatalog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)  # Generic name
+    brand_name = db.Column(db.String(100))  # Brand name
+    default_dosage = db.Column(db.String(50))
+    default_frequency = db.Column(db.String(50))
+    _default_notes = db.Column(EncryptedText)
+    form = db.Column(db.String(50))
+    _common_uses = db.Column(EncryptedText)
