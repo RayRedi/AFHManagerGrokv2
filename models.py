@@ -18,12 +18,12 @@ class EncryptedText(TypeDecorator):
     impl = Text
     cache_ok = True
 
-    def process_bind_param(self, self, value, dialect):
+    def process_bind_param(self, value, dialect):
         if value is None:
             return None
         return cipher.encrypt(value.encode()).decode()
 
-    def process_result_value(self, self, value, dialect):
+    def process_result_value(self, value, dialect):
         if value is None:
             return None
         return cipher.decrypt(value.encode()).decode()
