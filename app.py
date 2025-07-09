@@ -849,25 +849,30 @@ def daily_logs(resident_id):
     prev_date = (log_date - timedelta(days=1)).isoformat()
     next_date = (log_date + timedelta(days=1)).isoformat()
 
-    class FoodIntakeForm(FlaskForm):
-        date = DateField('Date', validators=[DataRequired()])
-        meal = StringField('Meal', validators=[DataRequired()])
-        submit = SubmitField('Submit')
-    class LiquidIntakeForm(FlaskForm):
-        date = DateField('Date', validators=[DataRequired()])
-        liquid = StringField('Liquid Type', validators=[DataRequired()])
-        amount = StringField('Amount', validators=[DataRequired()])
-        submit = SubmitField('Submit')
-
-    class BowelMovementForm(FlaskForm):
-        date = DateField('Date', validators=[DataRequired()])
+    class DailyLogFoodIntakeForm(FlaskForm):
+        meal_type = SelectField('Meal Type', choices=[('breakfast', 'Breakfast'), ('lunch', 'Lunch'), ('dinner', 'Dinner')], validators=[DataRequired()])
         description = StringField('Description', validators=[DataRequired()])
-        submit = SubmitField('Submit')
+        submit = SubmitField('Add Food')
 
-    class UrineOutputForm(FlaskForm):
-        date = DateField('Date', validators=[DataRequired()])
+    class DailyLogLiquidIntakeForm(FlaskForm):
+        liquid_type = StringField('Liquid Type', validators=[DataRequired()])
         amount = StringField('Amount', validators=[DataRequired()])
-        submit = SubmitField('Submit')
+        submit = SubmitField('Add Liquid')
+
+    class DailyLogBowelMovementForm(FlaskForm):
+        size = SelectField('Size', choices=[('Small', 'Small'), ('Medium', 'Medium'), ('Large', 'Large')], validators=[DataRequired()])
+        consistency = SelectField('Consistency', choices=[('Soft', 'Soft'), ('Medium', 'Medium'), ('Hard', 'Hard')], validators=[DataRequired()])
+        submit = SubmitField('Add Bowel Movement')
+
+    class DailyLogUrineOutputForm(FlaskForm):
+        output = SelectField('Output', choices=[('Yes', 'Yes'), ('No', 'No'), ('No Output', 'No Output')], validators=[DataRequired()])
+        submit = SubmitField('Add Urine Output')
+
+    # Instantiate the forms
+    food_form = DailyLogFoodIntakeForm()
+    liquid_form = DailyLogLiquidIntakeForm()
+    bowel_form = DailyLogBowelMovementForm()
+    urine_form = DailyLogUrineOutputForm()
 
     if request.method == 'POST':
         if food_form.validate_on_submit() and 'add_food' in request.form and current_user.role in ['admin', 'caregiver']:
