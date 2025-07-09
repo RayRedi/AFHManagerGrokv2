@@ -34,7 +34,7 @@
         <div class="card-body">
             <ul>
                 {% for food in food_intakes %}
-                    <li>{{ food.meal_type|capitalize }}: {{ food.description }}</li>
+                    <li>{{ food.meal_type|capitalize }}: {{ food.intake_level }}{% if food.notes %} - {{ food.notes }}{% endif %}</li>
                 {% endfor %}
             </ul>
             <form method="POST">
@@ -59,16 +59,12 @@
         <div class="card-body">
             <ul>
                 {% for liquid in liquid_intakes %}
-                    <li>{{ liquid.time }}: {{ liquid.liquid_type }} - {{ liquid.amount }}</li>
+                    <li>{{ liquid.meal_type|capitalize }}: {{ liquid.intake }}</li>
                 {% endfor %}
             </ul>
             <form method="POST">
                 {{ liquid_form.hidden_tag() }}
                 <input type="hidden" name="add_liquid" value="1">
-                <div class="form-group">
-                    <label>{{ liquid_form.time.label }}:</label>
-                    {{ liquid_form.time(class="form-control", type="time") }}
-                </div>
                 <div class="form-group">
                     <label>{{ liquid_form.liquid_type.label }}:</label>
                     {{ liquid_form.liquid_type(class="form-control") }}
@@ -88,16 +84,12 @@
         <div class="card-body">
             <ul>
                 {% for bowel in bowel_movements %}
-                    <li>{{ bowel.time }}: Size - {{ bowel.size }}, Consistency - {{ bowel.consistency }}</li>
+                    <li>{{ bowel.meal_type|capitalize }}: Size - {{ bowel.size }}, Consistency - {{ bowel.consistency }}</li>
                 {% endfor %}
             </ul>
             <form method="POST">
                 {{ bowel_form.hidden_tag() }}
                 <input type="hidden" name="add_bowel" value="1">
-                <div class="form-group">
-                    <label>{{ bowel_form.time.label }}:</label>
-                    {{ bowel_form.time(class="form-control", type="time") }}
-                </div>
                 <div class="form-group">
                     <label>{{ bowel_form.size.label }}:</label>
                     {{ bowel_form.size(class="form-control") }}
@@ -117,16 +109,12 @@
         <div class="card-body">
             <ul>
                 {% for urine in urine_outputs %}
-                    <li>{{ urine.time }}: {{ urine.output }}</li>
+                    <li>{{ urine.meal_type|capitalize }}: {{ urine.output }}</li>
                 {% endfor %}
             </ul>
             <form method="POST">
                 {{ urine_form.hidden_tag() }}
                 <input type="hidden" name="add_urine" value="1">
-                <div class="form-group">
-                    <label>{{ urine_form.time.label }}:</label>
-                    {{ urine_form.time(class="form-control", type="time") }}
-                </div>
                 <div class="form-group">
                     <label>{{ urine_form.output.label }}:</label>
                     {{ urine_form.output(class="form-control") }}
@@ -136,3 +124,7 @@
         </div>
     </div>
 {% endblock %}
+
+<script>
+    // Add any page-specific JavaScript here if needed
+</script>
