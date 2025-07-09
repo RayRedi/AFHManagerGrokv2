@@ -99,14 +99,15 @@ function initializeMedicationSearch(inputId, dropdownId) {
     }
 
     // Input event
-    searchInput.addEventListener('input', () => {
-        searchMedications(searchInput.value);
-    });
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            searchMedications(searchInput.value);
+        });
 
-    // Keyboard navigation
-    searchInput.addEventListener('keydown', (e) => {
-        const items = dropdown.getElementsByClassName('dropdown-item');
-        if (items.length === 0) return;
+        // Keyboard navigation
+        searchInput.addEventListener('keydown', (e) => {
+            const items = dropdown.getElementsByClassName('dropdown-item');
+            if (items.length === 0) return;
 
         if (e.key === 'ArrowDown') {
             e.preventDefault();

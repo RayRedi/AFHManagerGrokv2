@@ -35,7 +35,9 @@ app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_USERNAME', 'your-email@
 # Initialize encryption
 ENCRYPTION_KEY = os.environ.get('ENCRYPTION_KEY')
 if not ENCRYPTION_KEY:
-    raise ValueError("ENCRYPTION_KEY not set in environment variables")
+    # Generate a key for development - in production, set ENCRYPTION_KEY in secrets
+    ENCRYPTION_KEY = Fernet.generate_key().decode()
+    print("Warning: Using generated encryption key. Set ENCRYPTION_KEY in secrets for production.")
 cipher = Fernet(ENCRYPTION_KEY.encode())
 
 db = SQLAlchemy(app)
