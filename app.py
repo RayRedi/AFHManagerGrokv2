@@ -89,8 +89,7 @@ class Medication(db.Model):
     dosage = db.Column(db.String(50))
     frequency = db.Column(db.String(50))
     _notes = db.Column(EncryptedText)
-    start_date = db.Column(db.Date)
-    end_date = db.Column(db.Date)
+    expiration_date = db.Column(db.Date, nullable=False)
     form = db.Column(db.String(50))
     _common_uses = db.Column(EncryptedText)
 
@@ -235,8 +234,7 @@ class MedicationForm(FlaskForm):
     notes = TextAreaField('Notes')
     form = StringField('Form', validators=[Length(max=50)])
     common_uses = TextAreaField('Common Uses')
-    start_date = DateField('Start Date', validators=[DataRequired()])
-    end_date = DateField('End Date')
+    expiration_date = DateField('Expiration Date', validators=[DataRequired()])
     submit = SubmitField('Save Medication')
 
 class MedicationLogForm(FlaskForm):
@@ -979,13 +977,12 @@ def medications(resident_id):
             notes = sanitize_input(medication_form.notes.data)
             form = sanitize_input(medication_form.form.data)
             common_uses = sanitize_input(medication_form.common_uses.data)
-            start_date = medication_form.start_date.data
-            end_date = medication_form.end_date.data
+            expiration_date = medication_form.expiration_date.data
             if not name:
                 flash('Medication name is required')
                 return redirect(url_for('medications', resident_id=resident_id))
             new_med = Medication(resident_id=resident_id, name=name, dosage=dosage, frequency=frequency,
-                                 notes=notes, form=form, common_uses=common_uses, start_date=start_date, end_date=end_date)
+                                 notes=notes, form=form, common_uses=common_uses, expiration_date=expiration_date)
             db.session.add(new_med)
             # Add to MedicationCatalog if not already present
             if not MedicationCatalog.query.filter_by(name=name).first():
