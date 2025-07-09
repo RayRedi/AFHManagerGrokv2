@@ -38,7 +38,7 @@ if not ENCRYPTION_KEY:
     print("Warning: Using generated encryption key. Set ENCRYPTION_KEY in secrets for production.")
 cipher = Fernet(ENCRYPTION_KEY.encode())
 
-from models import db, Resident, FoodIntake, LiquidIntake, BowelMovement, UrineOutput, Vitals, EncryptedText
+from models import db, Resident, FoodIntake, LiquidIntake, BowelMovement, UrineOutput, Vitals, EncryptedText, MedicationCatalog
 
 db.init_app(app)
 mail = Mail(app)
@@ -127,30 +127,7 @@ class AuditLog(db.Model):
     action = db.Column(db.String(100), nullable=False)
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
-class MedicationCatalog(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), unique=True, nullable=False)
-    default_dosage = db.Column(db.String(50))
-    default_frequency = db.Column(db.String(50))
-    _default_notes = db.Column(EncryptedText)
-    form = db.Column(db.String(50))
-    _common_uses = db.Column(EncryptedText)
 
-    @hybrid_property
-    def default_notes(self):
-        return self._default_notes
-
-    @default_notes.setter
-    def default_notes(self, value):
-        self._default_notes = value
-
-    @hybrid_property
-    def common_uses(self):
-        return self._common_uses
-
-    @common_uses.setter
-    def common_uses(self, value):
-        self._common_uses = value
 
 # WTForms for CSRF-protected forms
 class LoginForm(FlaskForm):
