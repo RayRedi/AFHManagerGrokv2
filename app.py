@@ -16,8 +16,39 @@ import json
 from cryptography.fernet import Fernet
 from sqlalchemy import TypeDecorator, Text
 from sqlalchemy.ext.hybrid import hybrid_property
+import sqlite3
 # Initialize Flask app
 app = Flask(__name__)
+def init_medications():
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS medications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            brand_name TEXT NOT NULL,
+            generic_name TEXT NOT NULL,
+            common_uses TEXT
+        )
+    ''')
+    conn.commit()
+
+    # Add sample data only if empty
+    c.execute('SELECT COUNT(*) FROM medications')
+    if c.fetchone()[0] == 0:
+        sample_meds = [
+            ('Tylenol', 'Acetaminophen', 'Pain relief'),
+            ('Advil', 'Ibuprofen', 'Inflammation'),
+            ('Zyrtec', 'Cetirizine', 'Allergy relief'),
+            ('Lipitor', 'Atorvastatin', 'Cholesterol control'),
+            ('Synthroid', 'Levothyroxine', 'Thyroid hormone')
+        ]
+        c.executemany('INSERT INTO medications (brand_name, generic_name, common_uses) VALUES (?, ?, ?)', sample_meds)
+        conn.commit()
+
+    conn.close()
+
+init_medications()
+
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///afh.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
@@ -29,6 +60,7 @@ app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'your-email@gmail.com')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', 'your-app-password')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_USERNAME', 'your-email@gmail.com')
+
 
 # Initialize encryption
 ENCRYPTION_KEY = os.environ.get('ENCRYPTION_KEY')
@@ -544,6 +576,24 @@ def delete_resident(resident_id):
 def resident_profile(resident_id):
     resident = Resident.query.get_or_404(resident_id)
     return render_template('resident_profile.html', resident=resident)
+@app.route('/search_medications')
+def search_medications():
+    query = request.args.get('q', '')
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute('''
+        SELECT brand_name, generic_name FROM medications
+        WHERE brand_name LIKE ? OR generic_name LIKE ?
+        LIMIT 10
+    ''', (f'%{query}%', f'%{query}%'))
+    results = c.fetchall()
+    conn.close()
+
+    return jsonify([
+        {'label': f'{brand} ({generic})', 'brand_name': brand, 'generic_name': generic}
+        for brand, generic in results
+    ])
+
 
 @app.route('/resident/<int:resident_id>/daily-log-wizard', methods=['GET', 'POST'])
 @login_required
