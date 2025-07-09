@@ -59,12 +59,7 @@ function initializeMedicationSearch(inputId, dropdownId) {
         currentMedications.forEach((med, index) => {
             const item = document.createElement('div');
             item.className = 'dropdown-item';
-            item.innerHTML = `
-                <div class="medication-item">
-                    <div class="medication-name">${med.display_name}</div>
-                    <div class="medication-uses">${med.common_uses || 'No uses specified'}</div>
-                </div>
-            `;
+            item.innerHTML = `${med.name} (${med.common_uses || 'No uses specified'})`;
             item.addEventListener('click', () => {
                 selectMedication(index);
             });
@@ -85,12 +80,10 @@ function initializeMedicationSearch(inputId, dropdownId) {
     function selectMedication(index) {
         const med = currentMedications[index];
         if (med) {
-            // Use brand name if available, otherwise generic name
-            searchInput.value = med.brand_name || med.name;
+            searchInput.value = med.name;
             if (detailsDiv) {
                 detailsDiv.innerHTML = `
-                    <h5>${med.brand_name || med.name}</h5>
-                    ${med.brand_name ? `<p><strong>Generic Name:</strong> ${med.name}</p>` : ''}
+                    <h5>${med.name}</h5>
                     <p><strong>Dosage:</strong> ${med.dosage || 'N/A'}</p>
                     <p><strong>Frequency:</strong> ${med.frequency || 'N/A'}</p>
                     <p><strong>Notes:</strong> ${med.notes || 'N/A'}</p>
@@ -100,13 +93,7 @@ function initializeMedicationSearch(inputId, dropdownId) {
             }
             if (dosageInput) dosageInput.value = med.dosage || '';
             if (frequencyInput) frequencyInput.value = med.frequency || '';
-            if (notesInput) {
-                let notes = med.notes || '';
-                if (med.brand_name && med.name !== med.brand_name) {
-                    notes = notes ? `Generic name: ${med.name}. ${notes}` : `Generic name: ${med.name}`;
-                }
-                notesInput.value = notes;
-            }
+            if (notesInput) notesInput.value = med.notes || '';
             if (formInput) formInput.value = med.form || '';
             if (commonUsesInput) commonUsesInput.value = med.common_uses || '';
             hideDropdown();
