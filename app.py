@@ -674,8 +674,7 @@ def daily_log_wizard(resident_id):
                     )
                     db.session.add(vitals)
 
-                # Save Food, Liquid, Bowel,```python
- Urine for each meal
+                # Save Food, Liquid, Bowel, Urine for each meal
                 for meal in ['breakfast', 'lunch', 'dinner']:
                     # Food Intake
                     if session['daily_log_wizard'][meal]['food']:
