@@ -56,10 +56,27 @@ function initializeMedicationSearch(inputId, dropdownId) {
             hideDropdown();
             return;
         }
+        
+        // Add header
+        const header = document.createElement('div');
+        header.className = 'dropdown-header';
+        header.innerHTML = `<i class="fas fa-search me-2"></i>Found ${currentMedications.length} medication${currentMedications.length !== 1 ? 's' : ''}`;
+        dropdown.appendChild(header);
+        
         currentMedications.forEach((med, index) => {
             const item = document.createElement('div');
-            item.className = 'dropdown-item';
-            item.innerHTML = `${med.name} (${med.common_uses || 'No uses specified'})`;
+            item.className = 'dropdown-item medication-suggestion';
+            item.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-pills text-primary me-3"></i>
+                    <div class="flex-grow-1">
+                        <div class="fw-semibold">${med.name}</div>
+                        <small class="text-muted">${med.common_uses || 'No condition specified'}</small>
+                        ${med.dosage ? `<small class="text-info d-block">Default: ${med.dosage}${med.frequency ? ` ${med.frequency}` : ''}</small>` : ''}
+                    </div>
+                    <i class="fas fa-arrow-right text-muted"></i>
+                </div>
+            `;
             item.addEventListener('click', () => {
                 selectMedication(index);
             });
@@ -81,29 +98,61 @@ function initializeMedicationSearch(inputId, dropdownId) {
         const med = currentMedications[index];
         if (med) {
             searchInput.value = med.name;
+            
+            // Show medication details preview
             if (detailsDiv) {
-                detailsDiv.innerHTML = `
-                    <h5>${med.name}</h5>
-                    <p><strong>Dosage:</strong> ${med.dosage || 'N/A'}</p>
-                    <p><strong>Frequency:</strong> ${med.frequency || 'N/A'}</p>
-                    <p><strong>Notes:</strong> ${med.notes || 'N/A'}</p>
-                    <p><strong>Form:</strong> ${med.form || 'N/A'}</p>
-                    <p><strong>Common Uses:</strong> ${med.common_uses || 'N/A'}</p>
-                `;
+                detailsDiv.style.display = 'block';
+                const detailsContent = document.getElementById('details-content');
+                if (detailsContent) {
+                    detailsContent.innerHTML = `
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>${med.name}</strong>
+                                ${med.form ? `<br><small class="text-muted">Form: ${med.form}</small>` : ''}
+                                ${med.common_uses ? `<br><small class="text-muted">Used for: ${med.common_uses}</small>` : ''}
+                            </div>
+                            <div class="col-md-6">
+                                ${med.dosage ? `<small class="text-muted">Suggested dosage: ${med.dosage}</small><br>` : ''}
+                                ${med.frequency ? `<small class="text-muted">Suggested frequency: ${med.frequency}</small>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }
             }
+            
+            // Auto-fill form fields
             if (dosageInput) dosageInput.value = med.dosage || '';
             if (frequencyInput) frequencyInput.value = med.frequency || '';
             if (notesInput) notesInput.value = med.notes || '';
             if (formInput) formInput.value = med.form || '';
             if (commonUsesInput) commonUsesInput.value = med.common_uses || '';
+            
+            // Add visual feedback
+            searchInput.classList.add('is-valid');
+            setTimeout(() => {
+                searchInput.classList.remove('is-valid');
+            }, 2000);
+            
             hideDropdown();
         }
     }
 
+    // Clear medication details when input is cleared or changed significantly
+    function clearMedicationDetails() {
+        if (detailsDiv) {
+            detailsDiv.style.display = 'none';
+        }
+        searchInput.classList.remove('is-valid');
+    }
+
     // Input event
     if (searchInput) {
-        searchInput.addEventListener('input', () => {
-            searchMedications(searchInput.value);
+        searchInput.addEventListener('input', (e) => {
+            const value = e.target.value;
+            if (value.length < 2) {
+                clearMedicationDetails();
+            }
+            searchMedications(value);
         });
 
         // Keyboard navigation

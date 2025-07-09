@@ -358,27 +358,27 @@ body {
     .meal-card {
         margin-bottom: 15px;
     }
-    
+
     .meal-icon {
         font-size: 2rem !important;
     }
-    
+
     .step-indicators .badge {
         font-size: 9px;
         padding: 3px 6px;
     }
-    
+
     #stepContent {
         min-height: 250px;
         padding: 15px;
     }
-    
+
     #stepContent .form-control,
     #stepContent .form-select {
         font-size: 14px;
         padding: 10px;
     }
-    
+
     .modal-body .btn {
         padding: 8px 16px;
         font-size: 14px;
@@ -390,46 +390,196 @@ body {
         font-size: 14px;
         padding: 12px;
     }
-    
+
     .accordion-button .badge {
         font-size: 10px;
         padding: 2px 6px;
     }
-    
+
     .card-title {
         font-size: 1.1rem;
     }
-    
+
     .display-5 {
         font-size: 1.6rem;
     }
-    
+
     .btn-group {
         flex-direction: column;
         width: 100%;
     }
-    
+
     .btn-group .btn {
         margin-bottom: 5px;
     }
-    
+
     .meal-card .card-body {
         padding: 15px;
     }
-    
+
     .meal-card h3 {
         font-size: 1.3rem;
     }
-    
+
     .modal-dialog {
         margin: 10px;
     }
-    
+
     #wizardProgress {
         height: 25px;
     }
-    
+
     #progressText {
         font-size: 12px;
     }
+}
+/* Enhanced Dropdown styles */
+.dropdown-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #e3e6f0;
+    border-radius: 8px;
+    z-index: 1000;
+    max-height: 400px;
+    overflow-y: auto;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    margin-top: 4px;
+}
+
+.dropdown-header {
+    padding: 12px 16px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e3e6f0;
+    font-weight: 600;
+    color: #5a5c69;
+    font-size: 0.875rem;
+}
+
+.medication-suggestion {
+    padding: 16px;
+    cursor: pointer;
+    border-bottom: 1px solid #f8f9fa;
+    transition: all 0.2s ease;
+}
+
+.medication-suggestion:hover, .medication-suggestion.selected {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e3e6f0 100%);
+    border-left: 4px solid #6b48ff;
+}
+
+.medication-suggestion:last-child {
+    border-bottom: none;
+}
+
+/* Step-based form styling */
+.step-container {
+    position: relative;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 12px;
+    border-left: 4px solid #6b48ff;
+}
+
+.step-title {
+    margin-bottom: 16px;
+    font-weight: 600;
+}
+
+.step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: #6b48ff;
+    color: white;
+    border-radius: 50%;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-right: 12px;
+}
+
+/* Medication preview styling */
+.medication-preview {
+    border-radius: 8px;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Input group enhancements */
+.input-group-text {
+    background: #f8f9fa;
+    border-color: #e3e6f0;
+    width: 45px;
+    justify-content: center;
+}
+
+.form-control:focus {
+    border-color: #6b48ff;
+    box-shadow: 0 0 0 0.2rem rgba(107, 72, 255, 0.25);
+}
+
+.form-control.is-valid {
+    border-color: #28a745;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3e%3cpath fill='%2328a745' d='m2.3 6.73.04-.04L6.7 2.33a.5.5 0 0 1 .7.7L3.04 7.39a.5.5 0 0 1-.7 0L.7 5.74a.5.5 0 1 1 .7-.7z'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right calc(0.375em + 0.1875rem) center;
+    background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+    .step-container {
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+
+    .step-number {
+        width: 24px;
+        height: 24px;
+        font-size: 0.75rem;
+        margin-right: 8px;
+    }
+}
+
+/* Original dropdown compatibility */
+.dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    z-index: 1000;
+    max-height: 300px;
+    overflow-y: auto;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.dropdown-item {
+    padding: 12px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.dropdown-item:hover, .dropdown-item.selected {
+    background-color: #f8f9fa;
+}
+
+.dropdown-item:last-child {
+    border-bottom: none;
 }

@@ -11,50 +11,149 @@
 <!-- Add Medication -->
 <div class="card shadow-sm mb-4">
     <div class="card-body">
-        <h3 class="card-title fw-bold text-dark">Add Medication</h3>
+        <h3 class="card-title fw-bold text-dark mb-4">
+            <i class="fas fa-pills me-2"></i>Add New Medication
+        </h3>
         <form method="POST" action="{{ url_for('medications', resident_id=resident.id) }}">
             {{ medication_form.hidden_tag() }}
-            <div class="mb-3 position-relative">
-                <label for="name" class="form-label">Medication Name</label>
-                {{ medication_form.name(class="form-control form-control-lg rounded-pill", id="name", placeholder="Search medications (e.g., Lisinopril, hypertension)", **{'aria-label': 'Medication Name'}) }}
-                <div id="medication-dropdown" class="dropdown"></div>
-            </div>
-            <div id="medication-details" class="mb-3"></div>
-            <div class="row">
-                <div class="col-12 col-md-6 mb-3">
-                    <label for="dosage" class="form-label">Dosage</label>
-                    {{ medication_form.dosage(class="form-control", id="dosage") }}
-                </div>
-                <div class="col-12 col-md-6 mb-3">
-                    <label for="frequency" class="form-label">Frequency</label>
-                    {{ medication_form.frequency(class="form-control", id="frequency") }}
-                </div>
-            </div>
-            <div class="mb-3">
-                <label for="notes" class="form-label">Notes</label>
-                {{ medication_form.notes(class="form-control") }}
-            </div>
-            <div class="row">
-                <div class="col-12 col-md-6 mb-3">
-                    <label for="form" class="form-label">Form</label>
-                    {{ medication_form.form(class="form-control", id="form") }}
-                </div>
-                <div class="col-12 col-md-6 mb-3">
-                    <label for="common_uses" class="form-label">Common Uses</label>
-                    {{ medication_form.common_uses(class="form-control", id="common_uses") }}
+            
+            <!-- Step 1: Medication Search -->
+            <div class="step-container mb-4">
+                <h5 class="step-title text-primary mb-3">
+                    <span class="step-number">1</span> Find Medication
+                </h5>
+                <div class="position-relative">
+                    <label for="name" class="form-label fw-semibold">
+                        Medication Name <span class="text-danger">*</span>
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="fas fa-search text-muted"></i>
+                        </span>
+                        {{ medication_form.name(class="form-control form-control-lg", id="name", placeholder="Type medication name or condition (e.g., Lisinopril, blood pressure)", **{'aria-label': 'Medication Name', 'autocomplete': 'off'}) }}
+                    </div>
+                    <small class="text-muted">
+                        <i class="fas fa-lightbulb me-1"></i>
+                        Try searching by medication name or the condition it treats
+                    </small>
+                    <div id="medication-dropdown" class="dropdown-suggestions"></div>
                 </div>
             </div>
-            <div class="row">
-                <div class="col-12 col-md-6 mb-3">
-                    <label for="start_date" class="form-label">Start Date</label>
-                    {{ medication_form.start_date(class="form-control") }}
-                </div>
-                <div class="col-12 col-md-6 mb-3">
-                    <label for="end_date" class="form-label">End Date</label>
-                    {{ medication_form.end_date(class="form-control") }}
+
+            <!-- Medication Details Preview -->
+            <div id="medication-details" class="medication-preview mb-4" style="display: none;">
+                <div class="alert alert-info">
+                    <h6 class="mb-2"><i class="fas fa-info-circle me-1"></i>Medication Details</h6>
+                    <div id="details-content"></div>
                 </div>
             </div>
-            {{ medication_form.submit(class="btn btn-primary btn-lg w-100", style="background: #6b48ff; border: none;", value="Add Medication") }}
+
+            <!-- Step 2: Dosage Information -->
+            <div class="step-container mb-4">
+                <h5 class="step-title text-primary mb-3">
+                    <span class="step-number">2</span> Dosage & Schedule
+                </h5>
+                <div class="row">
+                    <div class="col-12 col-md-6 mb-3">
+                        <label for="dosage" class="form-label fw-semibold">
+                            Dosage <span class="text-muted">(optional)</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-pills text-muted"></i>
+                            </span>
+                            {{ medication_form.dosage(class="form-control", id="dosage", placeholder="e.g., 10 mg, 1 tablet") }}
+                        </div>
+                        <small class="text-muted">Amount per dose</small>
+                    </div>
+                    <div class="col-12 col-md-6 mb-3">
+                        <label for="frequency" class="form-label fw-semibold">
+                            Frequency <span class="text-muted">(optional)</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-clock text-muted"></i>
+                            </span>
+                            {{ medication_form.frequency(class="form-control", id="frequency", placeholder="e.g., Daily, Twice daily, As needed") }}
+                        </div>
+                        <small class="text-muted">How often to take</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Additional Details (Collapsible) -->
+            <div class="step-container mb-4">
+                <h5 class="step-title text-primary mb-3">
+                    <span class="step-number">3</span> Additional Information
+                    <button type="button" class="btn btn-link btn-sm ms-2 p-0" data-bs-toggle="collapse" data-bs-target="#additionalDetails" aria-expanded="false">
+                        <i class="fas fa-chevron-down"></i> Optional Details
+                    </button>
+                </h5>
+                
+                <div class="collapse" id="additionalDetails">
+                    <div class="card card-body bg-light">
+                        <div class="row">
+                            <div class="col-12 col-md-6 mb-3">
+                                <label for="form" class="form-label fw-semibold">Form</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-capsules text-muted"></i>
+                                    </span>
+                                    {{ medication_form.form(class="form-control", id="form", placeholder="e.g., Tablet, Capsule, Liquid") }}
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-6 mb-3">
+                                <label for="common_uses" class="form-label fw-semibold">Condition/Use</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-heartbeat text-muted"></i>
+                                    </span>
+                                    {{ medication_form.common_uses(class="form-control", id="common_uses", placeholder="e.g., High blood pressure, Diabetes") }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="notes" class="form-label fw-semibold">Special Instructions</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-sticky-note text-muted"></i>
+                                </span>
+                                {{ medication_form.notes(class="form-control", rows="3", placeholder="e.g., Take with food, Monitor blood pressure") }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-12 col-md-6 mb-3">
+                                <label for="start_date" class="form-label fw-semibold">
+                                    Start Date <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-calendar-plus text-muted"></i>
+                                    </span>
+                                    {{ medication_form.start_date(class="form-control") }}
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-6 mb-3">
+                                <label for="end_date" class="form-label fw-semibold">End Date</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-calendar-minus text-muted"></i>
+                                    </span>
+                                    {{ medication_form.end_date(class="form-control") }}
+                                </div>
+                                <small class="text-muted">Leave blank if ongoing</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="d-grid">
+                {{ medication_form.submit(class="btn btn-primary btn-lg", style="background: linear-gradient(135deg, #6b48ff 0%, #8b5cf6 100%); border: none; font-weight: 600;", value="✓ Add Medication") }}
+            </div>
         </form>
     </div>
 </div>
