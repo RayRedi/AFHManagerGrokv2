@@ -1800,7 +1800,16 @@ def init_medications():
             ('Guaifenesin', 'Guaifenesin', 'Cough, mucus'),
             ('Milk of Magnesia', 'Magnesium hydroxide', 'Constipation, heartburn'),
             ('Ondansetron', 'Ondansetron', 'Nausea, vomiting'),
-        ]</old_str>
+        ]
+        
+        c.executemany('INSERT INTO medications (brand_name, generic_name, common_uses) VALUES (?, ?, ?)', elderly_meds)
+        conn.commit()
+
+    conn.close()
+
+init_medications()
+
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///afh.db'</old_str>
         
         c.executemany('INSERT INTO medications (brand_name, generic_name, common_uses) VALUES (?, ?, ?)', elderly_meds)
         conn.commit()
