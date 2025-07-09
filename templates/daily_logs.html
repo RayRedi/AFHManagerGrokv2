@@ -179,21 +179,30 @@ class MealWizard {
     }
 
     init() {
+        // Wait for DOM to be fully loaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.setupEventListeners());
+        } else {
+            this.setupEventListeners();
+        }
+    }
+
+    setupEventListeners() {
         // Meal card click handlers
         const startMealBtns = document.querySelectorAll('.start-meal-btn');
         if (startMealBtns && startMealBtns.length > 0) {
             startMealBtns.forEach(btn => {
                 if (btn) {
                     btn.addEventListener('click', (e) => {
-                        const meal = e.target.dataset.meal;
-                        this.startMealWizard(meal);
+                        e.preventDefault();
+                        const meal = e.target.closest('.start-meal-btn').dataset.meal;
+                        if (meal) {
+                            this.startMealWizard(meal);
+                        }
                     });
                 }
             });
         }
-
-        // Wizard navigation - these elements don't exist until modal is opened
-        // Will be handled in startMealWizard method
     }
 
     startMealWizard(meal) {
@@ -211,37 +220,68 @@ class MealWizard {
         this.renderStep();
         this.updateProgress();
         
-        // Add event listeners for wizard navigation
+        // Add event listeners for wizard navigation with proper cleanup
+        this.setupWizardEventListeners();
+        
+        const modalElement = document.getElementById('mealWizardModal');
+        if (modalElement && typeof bootstrap !== 'undefined') {
+            const modal = new bootstrap.Modal(modalElement);
+            modal.show();
+        }
+    }
+
+    setupWizardEventListeners() {
+        // Clean up existing event listeners
+        if (this.nextStepHandler) {
+            const nextBtn = document.getElementById('nextBtn');
+            if (nextBtn) nextBtn.removeEventListener('click', this.nextStepHandler);
+        }
+        if (this.prevStepHandler) {
+            const prevBtn = document.getElementById('prevBtn');
+            if (prevBtn) prevBtn.removeEventListener('click', this.prevStepHandler);
+        }
+        if (this.skipStepHandler) {
+            const skipBtn = document.getElementById('skipBtn');
+            if (skipBtn) skipBtn.removeEventListener('click', this.skipStepHandler);
+        }
+        if (this.submitFormHandler) {
+            const submitBtn = document.getElementById('submitBtn');
+            if (submitBtn) submitBtn.removeEventListener('click', this.submitFormHandler);
+        }
+
+        // Add new event listeners
         const nextBtn = document.getElementById('nextBtn');
         const prevBtn = document.getElementById('prevBtn');
         const skipBtn = document.getElementById('skipBtn');
         const submitBtn = document.getElementById('submitBtn');
 
         if (nextBtn) {
-            nextBtn.removeEventListener('click', this.nextStepHandler);
-            this.nextStepHandler = () => this.nextStep();
+            this.nextStepHandler = (e) => {
+                e.preventDefault();
+                this.nextStep();
+            };
             nextBtn.addEventListener('click', this.nextStepHandler);
         }
         if (prevBtn) {
-            prevBtn.removeEventListener('click', this.prevStepHandler);
-            this.prevStepHandler = () => this.prevStep();
+            this.prevStepHandler = (e) => {
+                e.preventDefault();
+                this.prevStep();
+            };
             prevBtn.addEventListener('click', this.prevStepHandler);
         }
         if (skipBtn) {
-            skipBtn.removeEventListener('click', this.skipStepHandler);
-            this.skipStepHandler = () => this.skipStep();
+            this.skipStepHandler = (e) => {
+                e.preventDefault();
+                this.skipStep();
+            };
             skipBtn.addEventListener('click', this.skipStepHandler);
         }
         if (submitBtn) {
-            submitBtn.removeEventListener('click', this.submitFormHandler);
-            this.submitFormHandler = () => this.submitForm();
+            this.submitFormHandler = (e) => {
+                e.preventDefault();
+                this.submitForm();
+            };
             submitBtn.addEventListener('click', this.submitFormHandler);
-        }
-        
-        const modalElement = document.getElementById('mealWizardModal');
-        if (modalElement && typeof bootstrap !== 'undefined') {
-            const modal = new bootstrap.Modal(modalElement);
-            modal.show();
         }
     }
 
@@ -517,7 +557,11 @@ class MealWizard {
         formData.append('meal_type', this.currentMeal);
         formData.append('form_data', JSON.stringify(this.formData));
         
-        const csrfToken = document.querySelector('[name=csrf_token]');
+        const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
+        const csrfTokenInput = document.querySelector('[name=csrf_token]');
+        const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : 
+                         (csrfTokenInput ? csrfTokenInput.value : null);
+        
         if (!csrfToken) {
             alert('CSRF token not found. Please refresh the page.');
             return;
@@ -528,7 +572,7 @@ class MealWizard {
                 method: 'POST',
                 body: formData,
                 headers: {
-                    'X-CSRFToken': csrfToken.value
+                    'X-CSRFToken': csrfToken
                 }
             });
             
@@ -538,20 +582,27 @@ class MealWizard {
                     const modal = bootstrap.Modal.getInstance(modalElement);
                     if (modal) modal.hide();
                 }
-                location.reload(); // Refresh to show updated data
+                // Refresh to show updated data
+                window.location.reload();
             } else {
+                const errorText = await response.text();
+                console.error('Server error:', errorText);
                 alert('Error saving data. Please try again.');
             }
         } catch (error) {
-            console.error('Error:', error);
-            alert('Error saving data. Please try again.');
+            console.error('Network error:', error);
+            alert('Error saving data. Please check your connection and try again.');
         }
     }
 }
 
 // Initialize the wizard when the page loads
 document.addEventListener('DOMContentLoaded', function() {
-    new MealWizard();
+    try {
+        new MealWizard();
+    } catch (error) {
+        console.error('Error initializing MealWizard:', error);
+    }
 });
 </script>
 {% endblock %}
