@@ -1,3 +1,4 @@
+
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import TypeDecorator, Text
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -124,29 +125,3 @@ class UrineOutput(db.Model):
     date = db.Column(db.Date, nullable=False)
     meal_type = db.Column(db.String(20), nullable=False)  # 'breakfast', 'lunch', 'dinner'
     output = db.Column(db.String(20), nullable=False)  # 'Yes', 'No'
-
-class MedicationCatalog(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), unique=True, nullable=False)
-    brand_name = db.Column(db.String(100))
-    default_dosage = db.Column(db.String(50))
-    default_frequency = db.Column(db.String(50))
-    _default_notes = db.Column(EncryptedText)
-    form = db.Column(db.String(50))
-    _common_uses = db.Column(EncryptedText)
-
-    @hybrid_property
-    def default_notes(self):
-        return self._default_notes
-
-    @default_notes.setter
-    def default_notes(self, value):
-        self._default_notes = value
-
-    @hybrid_property
-    def common_uses(self):
-        return self._common_uses
-
-    @common_uses.setter
-    def common_uses(self, value):
-        self._common_uses = value

@@ -38,7 +38,7 @@ if not ENCRYPTION_KEY:
     print("Warning: Using generated encryption key. Set ENCRYPTION_KEY in secrets for production.")
 cipher = Fernet(ENCRYPTION_KEY.encode())
 
-from models import db, Resident, FoodIntake, LiquidIntake, BowelMovement, UrineOutput, Vitals, EncryptedText, MedicationCatalog
+from models import db, Resident, FoodIntake, LiquidIntake, BowelMovement, UrineOutput, Vitals, EncryptedText
 
 db.init_app(app)
 mail = Mail(app)
@@ -127,7 +127,30 @@ class AuditLog(db.Model):
     action = db.Column(db.String(100), nullable=False)
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
+class MedicationCatalog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    default_dosage = db.Column(db.String(50))
+    default_frequency = db.Column(db.String(50))
+    _default_notes = db.Column(EncryptedText)
+    form = db.Column(db.String(50))
+    _common_uses = db.Column(EncryptedText)
 
+    @hybrid_property
+    def default_notes(self):
+        return self._default_notes
+
+    @default_notes.setter
+    def default_notes(self, value):
+        self._default_notes = value
+
+    @hybrid_property
+    def common_uses(self):
+        return self._common_uses
+
+    @common_uses.setter
+    def common_uses(self, value):
+        self._common_uses = value
 
 # WTForms for CSRF-protected forms
 class LoginForm(FlaskForm):
@@ -325,19 +348,13 @@ def medication_suggestions():
     query = request.args.get('term', '')
     if not query:
         return jsonify([])
-    
-    # Search by brand name, generic name, or common uses
     suggestions = MedicationCatalog.query.filter(
         (MedicationCatalog.name.ilike(f'%{query}%')) |
-        (MedicationCatalog.brand_name.ilike(f'%{query}%')) |
-        (MedicationCatalog._common_uses.ilike(f'%{query}%'))
-    ).order_by(MedicationCatalog.brand_name, MedicationCatalog.name).limit(20).all()
-    
+        (MedicationCatalog._common_uses.ilike(f'%{cipher.encrypt(query.encode()).decode()}%'))
+    ).order_by(MedicationCatalog.name).limit(20).all()
     return jsonify([{
         'id': med.id,
-        'name': med.name,  # Generic name
-        'brand_name': med.brand_name or '',  # Brand name
-        'display_name': f"{med.brand_name} ({med.name})" if med.brand_name else med.name,
+        'name': med.name,
         'dosage': med.default_dosage or '',
         'frequency': med.default_frequency or '',
         'notes': med.default_notes or '',
@@ -1175,58 +1192,11 @@ if __name__ == '__main__':
             db.session.add(resident)
             db.session.commit()
         sample_medications = [
-            {'name': 'Lisinopril', 'brand_name': 'Prinivil', 'default_dosage': '10 mg', 'default_frequency': 'Daily', 'default_notes': 'Take with water', 'form': 'tablet', 'common_uses': 'hypertension, heart failure'},
-            {'name': 'Metformin', 'brand_name': 'Glucophage', 'default_dosage': '500 mg', 'default_frequency': 'Twice daily', 'default_notes': 'Take with meals', 'form': 'tablet', 'common_uses': 'type 2 diabetes'},
-            {'name': 'Ibuprofen', 'brand_name': 'Advil', 'default_dosage': '200 mg', 'default_frequency': 'As needed', 'default_notes': 'Do not exceed 3200 mg daily', 'form': 'tablet', 'common_uses': 'pain, inflammation'},
-            {'name': 'Amlodipine', 'brand_name': 'Norvasc', 'default_dosage': '5 mg', 'default_frequency': 'Daily', 'default_notes': 'Monitor blood pressure', 'form': 'tablet', 'common_uses': 'hypertension, angina'},
-            {'name': 'Atorvastatin', 'brand_name': 'Lipitor', 'default_dosage': '20 mg', 'default_frequency': 'Daily', 'default_notes': 'Take at night', 'form': 'tablet', 'common_uses': 'high cholesterol'},
-            {'name': 'Acetaminophen', 'brand_name': 'Tylenol', 'default_dosage': '500 mg', 'default_frequency': 'As needed', 'default_notes': 'Do not exceed 3000 mg daily', 'form': 'tablet', 'common_uses': 'pain, fever'},
-            {'name': 'Cetirizine', 'brand_name': 'Zyrtec', 'default_dosage': '10 mg', 'default_frequency': 'Daily', 'default_notes': 'May cause drowsiness', 'form': 'tablet', 'common_uses': 'allergies, hay fever'},
-            {'name': 'Omeprazole', 'brand_name': 'Prilosec', 'default_dosage': '20 mg', 'default_frequency': 'Daily', 'default_notes': 'Take before meals', 'form': 'capsule', 'common_uses': 'acid reflux, heartburn'},
-            {'name': 'Aspirin', 'brand_name': 'Bayer', 'default_dosage': '81 mg', 'default_frequency': 'Daily', 'default_notes': 'Take with food', 'form': 'tablet', 'common_uses': 'heart attack prevention, pain'},
-            {'name': 'Warfarin', 'brand_name': 'Coumadin', 'default_dosage': '5 mg', 'default_frequency': 'Daily', 'default_notes': 'Monitor INR regularly', 'form': 'tablet', 'common_uses': 'blood clot prevention'},
-            {'name': 'Furosemide', 'brand_name': 'Lasix', 'default_dosage': '20 mg', 'default_frequency': 'Daily', 'default_notes': 'Monitor potassium levels', 'form': 'tablet', 'common_uses': 'fluid retention, high blood pressure'},
-            {'name': 'Insulin', 'brand_name': 'Humalog', 'default_dosage': '10 units', 'default_frequency': 'As directed', 'default_notes': 'Inject subcutaneously', 'form': 'injection', 'common_uses': 'diabetes'},
-            {'name': 'Hydrochlorothiazide', 'brand_name': 'Microzide', 'default_dosage': '25 mg', 'default_frequency': 'Daily', 'default_notes': 'Take in morning', 'form': 'tablet', 'common_uses': 'high blood pressure'},
-            {'name': 'Prednisone', 'brand_name': 'Deltasone', 'default_dosage': '10 mg', 'default_frequency': 'Daily', 'default_notes': 'Take with food', 'form': 'tablet', 'common_uses': 'inflammation, autoimmune conditions'},
-            {'name': 'Gabapentin', 'brand_name': 'Neurontin', 'default_dosage': '300 mg', 'default_frequency': 'Three times daily', 'default_notes': 'May cause dizziness', 'form': 'capsule', 'common_uses': 'nerve pain, seizures'},
-            {'name': 'Losartan', 'brand_name': 'Cozaar', 'default_dosage': '50 mg', 'default_frequency': 'Daily', 'default_notes': 'Monitor blood pressure', 'form': 'tablet', 'common_uses': 'high blood pressure'},
-            {'name': 'Sertraline', 'brand_name': 'Zoloft', 'default_dosage': '50 mg', 'default_frequency': 'Daily', 'default_notes': 'Take with food', 'form': 'tablet', 'common_uses': 'depression, anxiety'},
-            {'name': 'Digoxin', 'brand_name': 'Lanoxin', 'default_dosage': '0.25 mg', 'default_frequency': 'Daily', 'default_notes': 'Monitor heart rate', 'form': 'tablet', 'common_uses': 'heart failure, atrial fibrillation'},
-            {'name': 'Donepezil', 'brand_name': 'Aricept', 'default_dosage': '5 mg', 'default_frequency': 'Daily', 'default_notes': 'Take at bedtime', 'form': 'tablet', 'common_uses': 'Alzheimer\'s disease'},
-            {'name': 'Levothyroxine', 'brand_name': 'Synthroid', 'default_dosage': '50 mcg', 'default_frequency': 'Daily', 'default_notes': 'Take on empty stomach', 'form': 'tablet', 'common_uses': 'hypothyroidism'},
-            {'name': 'Clopidogrel', 'brand_name': 'Plavix', 'default_dosage': '75 mg', 'default_frequency': 'Daily', 'default_notes': 'Take with food', 'form': 'tablet', 'common_uses': 'blood clot prevention'},
-            {'name': 'Pantoprazole', 'brand_name': 'Protonix', 'default_dosage': '40 mg', 'default_frequency': 'Daily', 'default_notes': 'Take before meals', 'form': 'tablet', 'common_uses': 'acid reflux, stomach ulcers'},
-            {'name': 'Tramadol', 'brand_name': 'Ultram', 'default_dosage': '50 mg', 'default_frequency': 'As needed', 'default_notes': 'May cause dizziness', 'form': 'tablet', 'common_uses': 'moderate pain'},
-            {'name': 'Morphine', 'brand_name': 'MS Contin', 'default_dosage': '15 mg', 'default_frequency': 'As needed', 'default_notes': 'Controlled substance', 'form': 'tablet', 'common_uses': 'severe pain'},
-            {'name': 'Oxycodone', 'brand_name': 'OxyContin', 'default_dosage': '10 mg', 'default_frequency': 'As needed', 'default_notes': 'Controlled substance', 'form': 'tablet', 'common_uses': 'severe pain'},
-            {'name': 'Lorazepam', 'brand_name': 'Ativan', 'default_dosage': '0.5 mg', 'default_frequency': 'As needed', 'default_notes': 'Controlled substance', 'form': 'tablet', 'common_uses': 'anxiety, insomnia'},
-            {'name': 'Diphenhydramine', 'brand_name': 'Benadryl', 'default_dosage': '25 mg', 'default_frequency': 'As needed', 'default_notes': 'May cause drowsiness', 'form': 'tablet', 'common_uses': 'allergies, sleep aid'},
-            {'name': 'Potassium Chloride', 'brand_name': 'Klor-Con', 'default_dosage': '20 mEq', 'default_frequency': 'Daily', 'default_notes': 'Take with food', 'form': 'tablet', 'common_uses': 'potassium deficiency'},
-            {'name': 'Carvedilol', 'brand_name': 'Coreg', 'default_dosage': '3.125 mg', 'default_frequency': 'Twice daily', 'default_notes': 'Take with food', 'form': 'tablet', 'common_uses': 'heart failure, high blood pressure'},
-            {'name': 'Montelukast', 'brand_name': 'Singulair', 'default_dosage': '10 mg', 'default_frequency': 'Daily', 'default_notes': 'Take in evening', 'form': 'tablet', 'common_uses': 'asthma, allergies'},
-            {'name': 'Fluticasone', 'brand_name': 'Flonase', 'default_dosage': '50 mcg', 'default_frequency': 'Daily', 'default_notes': 'Prime before first use', 'form': 'nasal spray', 'common_uses': 'allergic rhinitis'},
-            {'name': 'Albuterol', 'brand_name': 'ProAir', 'default_dosage': '90 mcg', 'default_frequency': 'As needed', 'default_notes': 'Shake before use', 'form': 'inhaler', 'common_uses': 'asthma, COPD'},
-            {'name': 'Metoprolol', 'brand_name': 'Lopressor', 'default_dosage': '50 mg', 'default_frequency': 'Twice daily', 'default_notes': 'Take with meals', 'form': 'tablet', 'common_uses': 'high blood pressure, heart failure'},
-            {'name': 'Esomeprazole', 'brand_name': 'Nexium', 'default_dosage': '20 mg', 'default_frequency': 'Daily', 'default_notes': 'Take before meals', 'form': 'capsule', 'common_uses': 'acid reflux, stomach ulcers'},
-            {'name': 'Rosuvastatin', 'brand_name': 'Crestor', 'default_dosage': '10 mg', 'default_frequency': 'Daily', 'default_notes': 'Take at night', 'form': 'tablet', 'common_uses': 'high cholesterol'},
-            {'name': 'Duloxetine', 'brand_name': 'Cymbalta', 'default_dosage': '30 mg', 'default_frequency': 'Daily', 'default_notes': 'Take with food', 'form': 'capsule', 'common_uses': 'depression, anxiety, nerve pain'},
-            {'name': 'Memantine', 'brand_name': 'Namenda', 'default_dosage': '5 mg', 'default_frequency': 'Daily', 'default_notes': 'May cause dizziness', 'form': 'tablet', 'common_uses': 'Alzheimer\'s disease'},
-            {'name': 'Rivaroxaban', 'brand_name': 'Xarelto', 'default_dosage': '20 mg', 'default_frequency': 'Daily', 'default_notes': 'Take with food', 'form': 'tablet', 'common_uses': 'blood clot prevention'},
-            {'name': 'Spironolactone', 'brand_name': 'Aldactone', 'default_dosage': '25 mg', 'default_frequency': 'Daily', 'default_notes': 'Monitor potassium', 'form': 'tablet', 'common_uses': 'heart failure, high blood pressure'},
-            {'name': 'Trazodone', 'brand_name': 'Desyrel', 'default_dosage': '50 mg', 'default_frequency': 'At bedtime', 'default_notes': 'Take with food', 'form': 'tablet', 'common_uses': 'depression, insomnia'},
-            {'name': 'Quetiapine', 'brand_name': 'Seroquel', 'default_dosage': '25 mg', 'default_frequency': 'Daily', 'default_notes': 'May cause drowsiness', 'form': 'tablet', 'common_uses': 'schizophrenia, bipolar disorder'},
-            {'name': 'Simvastatin', 'brand_name': 'Zocor', 'default_dosage': '20 mg', 'default_frequency': 'Daily', 'default_notes': 'Take in evening', 'form': 'tablet', 'common_uses': 'high cholesterol'},
-            {'name': 'Ramipril', 'brand_name': 'Altace', 'default_dosage': '5 mg', 'default_frequency': 'Daily', 'default_notes': 'Take with water', 'form': 'capsule', 'common_uses': 'high blood pressure, heart failure'},
-            {'name': 'Calcium Carbonate', 'brand_name': 'Tums', 'default_dosage': '500 mg', 'default_frequency': 'As needed', 'default_notes': 'Take with food', 'form': 'tablet', 'common_uses': 'heartburn, calcium supplement'},
-            {'name': 'Docusate', 'brand_name': 'Colace', 'default_dosage': '100 mg', 'default_frequency': 'Daily', 'default_notes': 'Take with water', 'form': 'capsule', 'common_uses': 'constipation'},
-            {'name': 'Senna', 'brand_name': 'Senokot', 'default_dosage': '8.6 mg', 'default_frequency': 'Daily', 'default_notes': 'Take at bedtime', 'form': 'tablet', 'common_uses': 'constipation'},
-            {'name': 'Multivitamin', 'brand_name': 'Centrum', 'default_dosage': '1 tablet', 'default_frequency': 'Daily', 'default_notes': 'Take with food', 'form': 'tablet', 'common_uses': 'vitamin supplement'},
-            {'name': 'Vitamin D3', 'brand_name': 'Cholecalciferol', 'default_dosage': '1000 IU', 'default_frequency': 'Daily', 'default_notes': 'Take with fat', 'form': 'tablet', 'common_uses': 'vitamin D deficiency'},
-            {'name': 'Vitamin B12', 'brand_name': 'Cyanocobalamin', 'default_dosage': '500 mcg', 'default_frequency': 'Daily', 'default_notes': 'Take sublingually', 'form': 'tablet', 'common_uses': 'vitamin B12 deficiency'},
-            {'name': 'Folic Acid', 'brand_name': 'Folate', 'default_dosage': '1 mg', 'default_frequency': 'Daily', 'default_notes': 'Take with water', 'form': 'tablet', 'common_uses': 'folate deficiency, anemia'},
-            {'name': 'Iron Sulfate', 'brand_name': 'Feosol', 'default_dosage': '325 mg', 'default_frequency': 'Daily', 'default_notes': 'Take on empty stomach', 'form': 'tablet', 'common_uses': 'iron deficiency anemia'},
-            {'name': 'Nitroglycerin', 'brand_name': 'Nitrostat', 'default_dosage': '0.4 mg', 'default_frequency': 'As needed', 'default_notes': 'Sublingual use only', 'form': 'tablet', 'common_uses': 'chest pain, angina'}
+            {'name': 'Lisinopril', 'default_dosage': '10 mg', 'default_frequency': 'Daily', 'default_notes': 'Take with water', 'form': 'tablet', 'common_uses': 'hypertension, heart failure'},
+            {'name': 'Metformin', 'default_dosage': '500 mg', 'default_frequency': 'Twice daily', 'default_notes': 'Take with meals', 'form': 'tablet', 'common_uses': 'type 2 diabetes'},
+            {'name': 'Ibuprofen', 'default_dosage': '200 mg', 'default_frequency': 'As needed', 'default_notes': 'Do not exceed 3200 mg daily', 'form': 'tablet', 'common_uses': 'pain, inflammation'},
+            {'name': 'Amlodipine', 'default_dosage': '5 mg', 'default_frequency': 'Daily', 'default_notes': 'Monitor blood pressure', 'form': 'tablet', 'common_uses': 'hypertension, angina'},
+            {'name': 'Atorvastatin', 'default_dosage': '20 mg', 'default_frequency': 'Daily', 'default_notes': 'Take at night', 'form': 'tablet', 'common_uses': 'high cholesterol'}
         ]
         for med in sample_medications:
             if not MedicationCatalog.query.filter_by(name=med['name']).first():
