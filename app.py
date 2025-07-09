@@ -1763,7 +1763,44 @@ def init_medications():
             ('Diclegis', 'Doxylamine/Pyridoxine', 'Pregnancy nausea'),
 
             # End of 5000 medication expansion
-        ]
+            
+            # Additional medications requested
+            ('Probiotic', 'Lactobacillus/Bifidobacterium', 'Digestive health, gut microbiome'),
+            ('Rexulti', 'Brexpiprazole', 'Depression, schizophrenia'),
+            ('Tamsulosin', 'Tamsulosin', 'Enlarged prostate, BPH'),
+            ('Gabapentin', 'Gabapentin', 'Neuropathy, seizures, nerve pain'),
+            ('Olanzapine', 'Olanzapine', 'Bipolar disorder, schizophrenia'),
+            ('Sodium Chloride Irrigation Solution', 'Sodium chloride', 'Wound irrigation, nasal irrigation'),
+            ('Lidocaine Cream', 'Lidocaine topical', 'Local pain relief, numbing'),
+            ('Buspirone', 'Buspirone', 'Anxiety, generalized anxiety disorder'),
+            ('Calprotect', 'Barrier cream', 'Skin protection, incontinence care'),
+            ('Lidocaine Pain Relief Patch 4%', 'Lidocaine patch', 'Localized pain relief, neuropathy'),
+            ('Losartan', 'Losartan', 'High blood pressure, heart failure'),
+            ('Metoprolol Tartrate', 'Metoprolol tartrate', 'High blood pressure, heart failure'),
+            ('Quetiapine Fumarate', 'Quetiapine fumarate', 'Bipolar disorder, schizophrenia, sleep'),
+            ('Tears Drops', 'Artificial tears', 'Dry eyes, eye lubrication'),
+            ('Vitamin D3', 'Cholecalciferol', 'Bone health, vitamin D deficiency'),
+            ('Iodosorb Gel', 'Cadexomer iodine', 'Wound care, infection prevention'),
+            ('Levothyroxine Sodium', 'Levothyroxine sodium', 'Hypothyroidism, thyroid replacement'),
+            ('Sertraline', 'Sertraline', 'Depression, anxiety, PTSD'),
+            ('Albuterol', 'Albuterol', 'Asthma, COPD, bronchospasm'),
+            ('Geri-Tussin', 'Guaifenesin', 'Cough, chest congestion'),
+            ('Oxygen (O2)', 'Oxygen', 'Respiratory support, hypoxemia'),
+            ('Triad Hydrophilic Wound Dressing Paste', 'Wound dressing paste', 'Wound care, moisture management'),
+            ('Thick-It Original Powder', 'Thickening agent', 'Dysphagia, swallowing difficulties'),
+            ('Morphine Sulfate', 'Morphine sulfate', 'Severe pain, chronic pain'),
+            ('A and D Ointment', 'Vitamins A and D', 'Skin protection, diaper rash'),
+            ('Diltiazem', 'Diltiazem', 'High blood pressure, angina'),
+            ('Cetaphil Cream', 'Moisturizing cream', 'Dry skin, sensitive skin care'),
+            ('Cranberry', 'Cranberry extract', 'UTI prevention, urinary health'),
+            ('Meclizine HCL', 'Meclizine hydrochloride', 'Motion sickness, vertigo'),
+            ('Phenazopyridine HCL', 'Phenazopyridine hydrochloride', 'Urinary tract pain, dysuria'),
+            ('Enema', 'Enema solution', 'Constipation, bowel preparation'),
+            ('Gas Relief (Simethicone)', 'Simethicone', 'Gas, bloating, flatulence'),
+            ('Guaifenesin', 'Guaifenesin', 'Cough, chest congestion'),
+            ('Milk of Magnesia', 'Magnesium hydroxide', 'Constipation, heartburn'),
+            ('Ondansetron', 'Ondansetron', 'Nausea, vomiting, chemotherapy nausea'),
+        ]</old_str>
         
         c.executemany('INSERT INTO medications (brand_name, generic_name, common_uses) VALUES (?, ?, ?)', elderly_meds)
         conn.commit()
