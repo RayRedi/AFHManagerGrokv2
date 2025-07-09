@@ -1189,7 +1189,6 @@ def report(resident_id):
 if __name__ == '__main__':
     with app.app_context():
         print("Creating database at afh.db...")
-        db.drop_all()  # Drop existing tables to avoid schema conflicts
         db.create_all()
         print("Database created!")
         if not User.query.filter_by(username='admin').first():
@@ -1215,4 +1214,7 @@ if __name__ == '__main__':
             if not MedicationCatalog.query.filter_by(name=med['name']).first():
                 db.session.add(MedicationCatalog(**med))
         db.session.commit()
-    app.run(host='0.0.0.0', port=8080, debug=True)
+    
+    import os
+    port = int(os.environ.get('PORT', 8080))
+    app.run(host='0.0.0.0', port=port, debug=False)
