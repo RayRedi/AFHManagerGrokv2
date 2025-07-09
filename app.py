@@ -1,7 +1,7 @@
 import os
 from flask import Flask, render_template, redirect, url_for, request, flash, send_from_directory, send_file, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_user, login_required, current_user, logout_user
+from flask_login import LoginManager, UserMixin, login_user, login_required, current_user, logout_user, current_user
 from flask_wtf import FlaskForm, CSRFProtect
 from wtforms import StringField, PasswordField, SelectField, TextAreaField, DateField, IntegerField, HiddenField, FileField, SubmitField
 from wtforms.validators import DataRequired, Length
@@ -16,7 +16,14 @@ import json
 from cryptography.fernet import Fernet
 from sqlalchemy import TypeDecorator, Text
 from sqlalchemy.ext.hybrid import hybrid_property
-from forms import FoodIntakeForm, LiquidIntakeForm, BowelMovementForm, UrineOutputForm
+from models import Resident, FoodIntake, LiquidIntake, BowelMovement, UrineOutput, Vitals
+from your_database import db  # Adjust import based on your database setup
+from datetime import datetime, timedelta
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = 'your-secret-key'  # Ensure this is set
+# ... other configurations (e.g., SQLAlchemy, Fla) remain unchanged ...
+
 
 # Initialize Flask app
 app = Flask(__name__)
