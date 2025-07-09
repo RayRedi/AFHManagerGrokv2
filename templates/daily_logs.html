@@ -1,130 +1,332 @@
+
 {% extends 'base.html' %}
 
 {% block content %}
-    <h1>Daily Logs for {{ resident.name }} - {{ log_date }}</h1>
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-5 fw-bold text-dark">Daily Logs for {{ resident.name }}</h1>
+            <p class="lead text-muted">{{ log_date.strftime('%A, %B %d, %Y') }}</p>
+        </div>
+    </div>
 
     <!-- Date Navigation -->
-    <div class="mb-3">
-        <a href="{{ url_for('daily_logs', resident_id=resident.id, date=prev_date) }}" class="btn btn-secondary">Previous Day</a>
-        <a href="{{ url_for('daily_logs', resident_id=resident.id, date=next_date) }}" class="btn btn-secondary">Next Day</a>
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+                <a href="{{ url_for('daily_logs', resident_id=resident.id, date=prev_date) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-chevron-left"></i> Previous Day
+                </a>
+                <span class="fw-bold">{{ log_date.strftime('%B %d, %Y') }}</span>
+                <a href="{{ url_for('daily_logs', resident_id=resident.id, date=next_date) }}" class="btn btn-outline-secondary">
+                    Next Day <i class="bi bi-chevron-right"></i>
+                </a>
+            </div>
+        </div>
     </div>
 
     <!-- Daily Summary and Alerts -->
-    <div class="card">
-        <div class="card-header">Daily Summary</div>
+    {% if missing_logs %}
+    <div class="card shadow-sm mb-4">
         <div class="card-body">
-            {% if missing_logs %}
-                <div class="alert alert-danger">
-                    <strong>Alerts:</strong>
-                    <ul>
-                        {% for log in missing_logs %}
-                            <li>{{ log }}</li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            {% else %}
-                <p>All meals logged for today.</p>
-            {% endif %}
+            <div class="alert alert-warning mb-0">
+                <h5 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> Missing Logs</h5>
+                <ul class="mb-0">
+                    {% for log in missing_logs %}
+                        <li>{{ log }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Show All / Collapse All Controls -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-center gap-2">
+                <button type="button" class="btn btn-outline-primary" onclick="expandAllSteps()">
+                    <i class="bi bi-arrows-expand"></i> Show All Steps
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="collapseAllSteps()">
+                    <i class="bi bi-arrows-collapse"></i> Collapse All Steps
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- Food Intake -->
-    <div class="card">
-        <div class="card-header">Food Intakes</div>
-        <div class="card-body">
-            <ul>
-                {% for food in food_intakes %}
-                    <li>{{ food.meal_type|capitalize }}: {{ food.intake_level }}{% if food.notes %} - {{ food.notes }}{% endif %}</li>
-                {% endfor %}
-            </ul>
-            <form method="POST">
-                {{ food_form.hidden_tag() }}
-                <input type="hidden" name="add_food" value="1">
-                <div class="form-group">
-                    <label>{{ food_form.meal_type.label }}:</label>
-                    {{ food_form.meal_type(class="form-control") }}
-                </div>
-                <div class="form-group">
-                    <label>{{ food_form.description.label }}:</label>
-                    {{ food_form.description(class="form-control") }}
-                </div>
-                {{ food_form.submit(class="btn btn-primary") }}
-            </form>
+    <!-- Meal Sections -->
+    {% for meal_type in ['breakfast', 'lunch', 'dinner'] %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h3 class="card-title mb-0">{{ meal_type.title() }}</h3>
         </div>
-    </div>
+        <div class="card-body p-0">
+            <div class="accordion" id="accordion{{ meal_type.title() }}">
+                
+                <!-- Step 1: Vitals (Breakfast only) -->
+                {% if meal_type == 'breakfast' %}
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading{{ meal_type.title() }}Step1">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                data-bs-target="#collapse{{ meal_type.title() }}Step1" aria-expanded="false">
+                            <span class="badge bg-primary me-2">Step 1</span>
+                            <strong>Vitals</strong>
+                            {% set vitals = namespace(found=false) %}
+                            {% for food in food_intakes %}
+                                {% if food.meal_type == 'breakfast' %}
+                                    {% set vitals.found = true %}
+                                {% endif %}
+                            {% endfor %}
+                            <span class="ms-auto badge {{ 'bg-success' if vitals.found else 'bg-secondary' }}">
+                                {{ 'Recorded' if vitals.found else 'Not Recorded' }}
+                            </span>
+                        </button>
+                    </h2>
+                    <div id="collapse{{ meal_type.title() }}Step1" class="accordion-collapse collapse" 
+                         data-bs-parent="#accordion{{ meal_type.title() }}">
+                        <div class="accordion-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <strong>Blood Pressure:</strong> Not recorded
+                                </div>
+                                <div class="col-md-4">
+                                    <strong>Pulse:</strong> Not recorded
+                                </div>
+                                <div class="col-md-4">
+                                    <em class="text-muted">Vitals taken during breakfast</em>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
 
-    <!-- Liquid Intake -->
-    <div class="card">
-        <div class="card-header">Liquid Intakes</div>
-        <div class="card-body">
-            <ul>
-                {% for liquid in liquid_intakes %}
-                    <li>{{ liquid.meal_type|capitalize }}: {{ liquid.intake }}</li>
-                {% endfor %}
-            </ul>
-            <form method="POST">
-                {{ liquid_form.hidden_tag() }}
-                <input type="hidden" name="add_liquid" value="1">
-                <div class="form-group">
-                    <label>{{ liquid_form.liquid_type.label }}:</label>
-                    {{ liquid_form.liquid_type(class="form-control") }}
+                <!-- Step 2: Food Intake -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading{{ meal_type.title() }}Step2">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                data-bs-target="#collapse{{ meal_type.title() }}Step2" aria-expanded="false">
+                            <span class="badge bg-primary me-2">Step {{ '2' if meal_type == 'breakfast' else '1' }}</span>
+                            <strong>Food Intake</strong>
+                            {% set meal_food = food_intakes | selectattr('meal_type', 'equalto', meal_type) | list %}
+                            <span class="ms-auto badge {{ 'bg-success' if meal_food else 'bg-secondary' }}">
+                                {{ 'Recorded' if meal_food else 'Not Recorded' }}
+                            </span>
+                        </button>
+                    </h2>
+                    <div id="collapse{{ meal_type.title() }}Step2" class="accordion-collapse collapse" 
+                         data-bs-parent="#accordion{{ meal_type.title() }}">
+                        <div class="accordion-body">
+                            {% set meal_food = food_intakes | selectattr('meal_type', 'equalto', meal_type) | list %}
+                            {% if meal_food %}
+                                {% for food in meal_food %}
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>
+                                        <strong>Intake Level:</strong> {{ food.intake_level }}
+                                        {% if food.notes %}
+                                        <br><small class="text-muted">Notes: {{ food.notes }}</small>
+                                        {% endif %}
+                                    </div>
+                                    <span class="badge bg-success">Completed</span>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="text-muted">
+                                    <i class="bi bi-info-circle"></i> No food intake recorded for {{ meal_type }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>{{ liquid_form.amount.label }}:</label>
-                    {{ liquid_form.amount(class="form-control") }}
-                </div>
-                {{ liquid_form.submit(class="btn btn-primary") }}
-            </form>
-        </div>
-    </div>
 
-    <!-- Bowel Movements -->
-    <div class="card">
-        <div class="card-header">Bowel Movements</div>
-        <div class="card-body">
-            <ul>
-                {% for bowel in bowel_movements %}
-                    <li>{{ bowel.meal_type|capitalize }}: Size - {{ bowel.size }}, Consistency - {{ bowel.consistency }}</li>
-                {% endfor %}
-            </ul>
-            <form method="POST">
-                {{ bowel_form.hidden_tag() }}
-                <input type="hidden" name="add_bowel" value="1">
-                <div class="form-group">
-                    <label>{{ bowel_form.size.label }}:</label>
-                    {{ bowel_form.size(class="form-control") }}
+                <!-- Step 3: Liquid Intake -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading{{ meal_type.title() }}Step3">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                data-bs-target="#collapse{{ meal_type.title() }}Step3" aria-expanded="false">
+                            <span class="badge bg-primary me-2">Step {{ '3' if meal_type == 'breakfast' else '2' }}</span>
+                            <strong>Liquid Intake</strong>
+                            {% set meal_liquid = liquid_intakes | selectattr('meal_type', 'equalto', meal_type) | list %}
+                            <span class="ms-auto badge {{ 'bg-success' if meal_liquid else 'bg-secondary' }}">
+                                {{ 'Recorded' if meal_liquid else 'Not Recorded' }}
+                            </span>
+                        </button>
+                    </h2>
+                    <div id="collapse{{ meal_type.title() }}Step3" class="accordion-collapse collapse" 
+                         data-bs-parent="#accordion{{ meal_type.title() }}">
+                        <div class="accordion-body">
+                            {% set meal_liquid = liquid_intakes | selectattr('meal_type', 'equalto', meal_type) | list %}
+                            {% if meal_liquid %}
+                                {% for liquid in meal_liquid %}
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>
+                                        <strong>Intake:</strong> {{ liquid.intake }}
+                                    </div>
+                                    <span class="badge bg-success">Completed</span>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="text-muted">
+                                    <i class="bi bi-info-circle"></i> No liquid intake recorded for {{ meal_type }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>{{ bowel_form.consistency.label }}:</label>
-                    {{ bowel_form.consistency(class="form-control") }}
-                </div>
-                {{ bowel_form.submit(class="btn btn-primary") }}
-            </form>
-        </div>
-    </div>
 
-    <!-- Urine Outputs -->
-    <div class="card">
-        <div class="card-header">Urine Outputs</div>
-        <div class="card-body">
-            <ul>
-                {% for urine in urine_outputs %}
-                    <li>{{ urine.meal_type|capitalize }}: {{ urine.output }}</li>
-                {% endfor %}
-            </ul>
-            <form method="POST">
-                {{ urine_form.hidden_tag() }}
-                <input type="hidden" name="add_urine" value="1">
-                <div class="form-group">
-                    <label>{{ urine_form.output.label }}:</label>
-                    {{ urine_form.output(class="form-control") }}
+                <!-- Step 4: Bowel Movement -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading{{ meal_type.title() }}Step4">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                data-bs-target="#collapse{{ meal_type.title() }}Step4" aria-expanded="false">
+                            <span class="badge bg-primary me-2">Step {{ '4' if meal_type == 'breakfast' else '3' }}</span>
+                            <strong>Bowel Movement</strong>
+                            {% set meal_bowel = bowel_movements | selectattr('meal_type', 'equalto', meal_type) | list %}
+                            <span class="ms-auto badge {{ 'bg-success' if meal_bowel else 'bg-secondary' }}">
+                                {{ 'Recorded' if meal_bowel else 'Not Recorded' }}
+                            </span>
+                        </button>
+                    </h2>
+                    <div id="collapse{{ meal_type.title() }}Step4" class="accordion-collapse collapse" 
+                         data-bs-parent="#accordion{{ meal_type.title() }}">
+                        <div class="accordion-body">
+                            {% set meal_bowel = bowel_movements | selectattr('meal_type', 'equalto', meal_type) | list %}
+                            {% if meal_bowel %}
+                                {% for bowel in meal_bowel %}
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>
+                                        <strong>Size:</strong> {{ bowel.size }} |
+                                        <strong>Consistency:</strong> {{ bowel.consistency }}
+                                    </div>
+                                    <span class="badge bg-success">Completed</span>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="text-muted">
+                                    <i class="bi bi-info-circle"></i> No bowel movement recorded for {{ meal_type }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
-                {{ urine_form.submit(class="btn btn-primary") }}
-            </form>
+
+                <!-- Step 5: Urine Output -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading{{ meal_type.title() }}Step5">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                data-bs-target="#collapse{{ meal_type.title() }}Step5" aria-expanded="false">
+                            <span class="badge bg-primary me-2">Step {{ '5' if meal_type == 'breakfast' else '4' }}</span>
+                            <strong>Urine Output</strong>
+                            {% set meal_urine = urine_outputs | selectattr('meal_type', 'equalto', meal_type) | list %}
+                            <span class="ms-auto badge {{ 'bg-success' if meal_urine else 'bg-secondary' }}">
+                                {{ 'Recorded' if meal_urine else 'Not Recorded' }}
+                            </span>
+                        </button>
+                    </h2>
+                    <div id="collapse{{ meal_type.title() }}Step5" class="accordion-collapse collapse" 
+                         data-bs-parent="#accordion{{ meal_type.title() }}">
+                        <div class="accordion-body">
+                            {% set meal_urine = urine_outputs | selectattr('meal_type', 'equalto', meal_type) | list %}
+                            {% if meal_urine %}
+                                {% for urine in meal_urine %}
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>
+                                        <strong>Output:</strong> {{ urine.output }}
+                                    </div>
+                                    <span class="badge bg-success">Completed</span>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="text-muted">
+                                    <i class="bi bi-info-circle"></i> No urine output recorded for {{ meal_type }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+            </div>
         </div>
     </div>
-{% endblock %}
+    {% endfor %}
+
+    <!-- Add New Log Entries (Admin/Caregiver only) -->
+    {% if current_user.role in ['admin', 'caregiver'] %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header">
+            <h4 class="card-title mb-0">Add New Log Entry</h4>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <h5>Food Intake</h5>
+                    <form method="POST">
+                        {{ food_form.hidden_tag() }}
+                        <input type="hidden" name="add_food" value="1">
+                        <div class="mb-2">
+                            {{ food_form.meal_type.label(class="form-label") }}
+                            {{ food_form.meal_type(class="form-select") }}
+                        </div>
+                        <div class="mb-2">
+                            {{ food_form.description.label(class="form-label") }}
+                            {{ food_form.description(class="form-control") }}
+                        </div>
+                        {{ food_form.submit(class="btn btn-primary btn-sm") }}
+                    </form>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <h5>Bowel Movement</h5>
+                    <form method="POST">
+                        {{ bowel_form.hidden_tag() }}
+                        <input type="hidden" name="add_bowel" value="1">
+                        <div class="mb-2">
+                            {{ bowel_form.size.label(class="form-label") }}
+                            {{ bowel_form.size(class="form-select") }}
+                        </div>
+                        <div class="mb-2">
+                            {{ bowel_form.consistency.label(class="form-label") }}
+                            {{ bowel_form.consistency(class="form-select") }}
+                        </div>
+                        {{ bowel_form.submit(class="btn btn-primary btn-sm") }}
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
 
 <script>
-    // Add any page-specific JavaScript here if needed
+function expandAllSteps() {
+    const accordions = document.querySelectorAll('.accordion-collapse');
+    accordions.forEach(accordion => {
+        if (!accordion.classList.contains('show')) {
+            const button = document.querySelector(`[data-bs-target="#${accordion.id}"]`);
+            button.click();
+        }
+    });
+}
+
+function collapseAllSteps() {
+    const accordions = document.querySelectorAll('.accordion-collapse.show');
+    accordions.forEach(accordion => {
+        const button = document.querySelector(`[data-bs-target="#${accordion.id}"]`);
+        button.click();
+    });
+}
+
+// Auto-expand sections with recorded data on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const recordedBadges = document.querySelectorAll('.badge.bg-success');
+    recordedBadges.forEach(badge => {
+        if (badge.textContent.trim() === 'Recorded') {
+            const button = badge.closest('.accordion-header').querySelector('button');
+            if (button && !button.getAttribute('aria-expanded') === 'true') {
+                setTimeout(() => button.click(), 100);
+            }
+        }
+    });
+});
 </script>
+{% endblock %}
