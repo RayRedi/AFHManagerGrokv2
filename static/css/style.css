@@ -160,3 +160,78 @@ body {
         font-size: 16px;
     }
 }
+
+/* Accordion styling */
+.accordion-button {
+    background-color: #f8f9fa;
+    border: none;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.accordion-button:not(.collapsed) {
+    background-color: #e7f3ff;
+    border-color: #6b48ff;
+    color: #0052cc;
+}
+
+.accordion-button:focus {
+    border-color: #6b48ff;
+    box-shadow: 0 0 0 0.25rem rgba(107, 72, 255, 0.25);
+}
+
+.accordion-item {
+    border: 1px solid #dee2e6;
+    margin-bottom: 2px;
+}
+
+.accordion-item:first-of-type {
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+
+.accordion-item:last-of-type {
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+.accordion-body {
+    background-color: #ffffff;
+    border-top: 1px solid #dee2e6;
+}
+
+/* Badge styling */
+.badge {
+    font-size: 12px;
+    padding: 4px 8px;
+}
+
+/* Mobile responsiveness for accordions */
+@media (max-width: 576px) {
+    .accordion-button {
+        font-size: 14px;
+        padding: 12px;
+    }
+    
+    .accordion-button .badge {
+        font-size: 10px;
+        padding: 2px 6px;
+    }
+    
+    .card-title {
+        font-size: 1.1rem;
+    }
+    
+    .display-5 {
+        font-size: 1.6rem;
+    }
+    
+    .btn-group {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .btn-group .btn {
+        margin-bottom: 5px;
+    }
+}

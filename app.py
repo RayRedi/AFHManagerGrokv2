@@ -1,7 +1,7 @@
 import os
 from flask import Flask, render_template, redirect, url_for, request, flash, send_from_directory, send_file, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_user, login_required, current_user, logout_user
+from flask_login import LoginManager, UserMixin, login_user, login_required, current_user, logout_user, current_user
 from flask_wtf import FlaskForm, CSRFProtect
 from wtforms import StringField, PasswordField, SelectField, TextAreaField, DateField, IntegerField, HiddenField, FileField, SubmitField
 from wtforms.validators import DataRequired, Length
@@ -16,7 +16,14 @@ import json
 from cryptography.fernet import Fernet
 from sqlalchemy import TypeDecorator, Text
 from sqlalchemy.ext.hybrid import hybrid_property
-from forms import FoodIntakeForm, LiquidIntakeForm, BowelMovementForm, UrineOutputForm
+from models import Resident, FoodIntake, LiquidIntake, BowelMovement, UrineOutput, Vitals
+from your_database import db  # Adjust import based on your database setup
+from datetime import datetime, timedelta
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = 'your-secret-key'  # Ensure this is set
+# ... other configurations (e.g., SQLAlchemy, Fla) remain unchanged ...
+
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -35,7 +42,9 @@ app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_USERNAME', 'your-email@
 # Initialize encryption
 ENCRYPTION_KEY = os.environ.get('ENCRYPTION_KEY')
 if not ENCRYPTION_KEY:
-    raise ValueError("ENCRYPTION_KEY not set in environment variables")
+    # Generate a key for development - in production, set ENCRYPTION_KEY in secrets
+    ENCRYPTION_KEY = Fernet.generate_key().decode()
+    print("Warning: Using generated encryption key. Set ENCRYPTION_KEY in secrets for production.")
 cipher = Fernet(ENCRYPTION_KEY.encode())
 
 db = SQLAlchemy(app)
@@ -849,25 +858,30 @@ def daily_logs(resident_id):
     prev_date = (log_date - timedelta(days=1)).isoformat()
     next_date = (log_date + timedelta(days=1)).isoformat()
 
-    class FoodIntakeForm(FlaskForm):
-        date = DateField('Date', validators=[DataRequired()])
-        meal = StringField('Meal', validators=[DataRequired()])
-        submit = SubmitField('Submit')
-    class LiquidIntakeForm(FlaskForm):
-        date = DateField('Date', validators=[DataRequired()])
-        liquid = StringField('Liquid Type', validators=[DataRequired()])
-        amount = StringField('Amount', validators=[DataRequired()])
-        submit = SubmitField('Submit')
-
-    class BowelMovementForm(FlaskForm):
-        date = DateField('Date', validators=[DataRequired()])
+    class DailyLogFoodIntakeForm(FlaskForm):
+        meal_type = SelectField('Meal Type', choices=[('breakfast', 'Breakfast'), ('lunch', 'Lunch'), ('dinner', 'Dinner')], validators=[DataRequired()])
         description = StringField('Description', validators=[DataRequired()])
-        submit = SubmitField('Submit')
+        submit = SubmitField('Add Food')
 
-    class UrineOutputForm(FlaskForm):
-        date = DateField('Date', validators=[DataRequired()])
+    class DailyLogLiquidIntakeForm(FlaskForm):
+        liquid_type = StringField('Liquid Type', validators=[DataRequired()])
         amount = StringField('Amount', validators=[DataRequired()])
-        submit = SubmitField('Submit')
+        submit = SubmitField('Add Liquid')
+
+    class DailyLogBowelMovementForm(FlaskForm):
+        size = SelectField('Size', choices=[('Small', 'Small'), ('Medium', 'Medium'), ('Large', 'Large')], validators=[DataRequired()])
+        consistency = SelectField('Consistency', choices=[('Soft', 'Soft'), ('Medium', 'Medium'), ('Hard', 'Hard')], validators=[DataRequired()])
+        submit = SubmitField('Add Bowel Movement')
+
+    class DailyLogUrineOutputForm(FlaskForm):
+        output = SelectField('Output', choices=[('Yes', 'Yes'), ('No', 'No'), ('No Output', 'No Output')], validators=[DataRequired()])
+        submit = SubmitField('Add Urine Output')
+
+    # Instantiate the forms
+    food_form = DailyLogFoodIntakeForm()
+    liquid_form = DailyLogLiquidIntakeForm()
+    bowel_form = DailyLogBowelMovementForm()
+    urine_form = DailyLogUrineOutputForm()
 
     if request.method == 'POST':
         if food_form.validate_on_submit() and 'add_food' in request.form and current_user.role in ['admin', 'caregiver']:
@@ -1184,7 +1198,6 @@ def report(resident_id):
 if __name__ == '__main__':
     with app.app_context():
         print("Creating database at afh.db...")
-        db.drop_all()  # Drop existing tables to avoid schema conflicts
         db.create_all()
         print("Database created!")
         if not User.query.filter_by(username='admin').first():
@@ -1210,4 +1223,7 @@ if __name__ == '__main__':
             if not MedicationCatalog.query.filter_by(name=med['name']).first():
                 db.session.add(MedicationCatalog(**med))
         db.session.commit()
-    app.run(host='0.0.0.0', port=8080, debug=True)
+    
+    import os
+    port = int(os.environ.get('PORT', 8080))
+    app.run(host='0.0.0.0', port=port, debug=False)
