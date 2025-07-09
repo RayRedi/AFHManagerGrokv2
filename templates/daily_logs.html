@@ -52,7 +52,7 @@
                         {% set meal_urine = urine_outputs | selectattr('meal_type', 'equalto', meal_type) | list %}
                         {% set vitals_recorded = vitals and meal_type == 'breakfast' %}
                         
-                        {% set total_steps = 5 if meal_type == 'breakfast' else 4 %}
+                        {% set total_steps = 6 if meal_type == 'breakfast' else 5 %}
                         {% set completed_steps = 0 %}
                         {% if meal_type == 'breakfast' and vitals_recorded %}
                             {% set completed_steps = completed_steps + 1 %}
@@ -60,7 +60,7 @@
                         {% if meal_food %}
                             {% set completed_steps = completed_steps + 1 %}
                         {% endif %}
-                        {% if meal_liquid %}
+                        {% if meal_liquid | length >= 3 %}
                             {% set completed_steps = completed_steps + 1 %}
                         {% endif %}
                         {% if meal_bowel %}
@@ -82,7 +82,7 @@
                                 <span class="badge {{ 'bg-success' if vitals_recorded else 'bg-secondary' }} me-1">Vitals</span>
                             {% endif %}
                             <span class="badge {{ 'bg-success' if meal_food else 'bg-secondary' }} me-1">Food</span>
-                            <span class="badge {{ 'bg-success' if meal_liquid else 'bg-secondary' }} me-1">Liquid</span>
+                            <span class="badge {{ 'bg-success' if meal_liquid | length >= 3 else 'bg-secondary' }} me-1">Liquids ({{ meal_liquid | length }}/3)</span>
                             <span class="badge {{ 'bg-success' if meal_bowel else 'bg-secondary' }} me-1">Bowel</span>
                             <span class="badge {{ 'bg-success' if meal_urine else 'bg-secondary' }} me-1">Urine</span>
                         </div>
@@ -180,18 +180,26 @@ class MealWizard {
 
     init() {
         // Meal card click handlers
-        document.querySelectorAll('.start-meal-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const meal = e.target.dataset.meal;
-                this.startMealWizard(meal);
+        const startMealBtns = document.querySelectorAll('.start-meal-btn');
+        if (startMealBtns) {
+            startMealBtns.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const meal = e.target.dataset.meal;
+                    this.startMealWizard(meal);
+                });
             });
-        });
+        }
 
         // Wizard navigation
-        document.getElementById('nextBtn').addEventListener('click', () => this.nextStep());
-        document.getElementById('prevBtn').addEventListener('click', () => this.prevStep());
-        document.getElementById('skipBtn').addEventListener('click', () => this.skipStep());
-        document.getElementById('submitBtn').addEventListener('click', () => this.submitForm());
+        const nextBtn = document.getElementById('nextBtn');
+        const prevBtn = document.getElementById('prevBtn');
+        const skipBtn = document.getElementById('skipBtn');
+        const submitBtn = document.getElementById('submitBtn');
+
+        if (nextBtn) nextBtn.addEventListener('click', () => this.nextStep());
+        if (prevBtn) prevBtn.addEventListener('click', () => this.prevStep());
+        if (skipBtn) skipBtn.addEventListener('click', () => this.skipStep());
+        if (submitBtn) submitBtn.addEventListener('click', () => this.submitForm());
     }
 
     startMealWizard(meal) {
@@ -200,18 +208,26 @@ class MealWizard {
         this.formData = {};
         this.totalSteps = this.stepDefinitions[meal].length;
         
-        document.getElementById('currentMeal').value = meal;
-        document.getElementById('currentStep').value = '1';
+        const currentMealInput = document.getElementById('currentMeal');
+        const currentStepInput = document.getElementById('currentStep');
+        
+        if (currentMealInput) currentMealInput.value = meal;
+        if (currentStepInput) currentStepInput.value = '1';
         
         this.renderStep();
         this.updateProgress();
         
-        const modal = new bootstrap.Modal(document.getElementById('mealWizardModal'));
-        modal.show();
+        const modalElement = document.getElementById('mealWizardModal');
+        if (modalElement && typeof bootstrap !== 'undefined') {
+            const modal = new bootstrap.Modal(modalElement);
+            modal.show();
+        }
     }
 
     renderStep() {
         const stepContent = document.getElementById('stepContent');
+        if (!stepContent) return;
+        
         const steps = this.stepDefinitions[this.currentMeal];
         const step = steps[this.currentStep - 1];
         
@@ -259,16 +275,39 @@ class MealWizard {
                     </div>
                 `;
                 break;
-            case 3: // Liquid Intake
+            case 3: // Liquid Intake - Multiple liquids
                 html += `
                     <div class="mb-3">
-                        <label class="form-label">Liquid Intake</label>
-                        <select class="form-select" id="liquid_intake" name="liquid_intake">
-                            <option value="">Select liquid intake...</option>
-                            <option value="Yes" ${this.formData.liquid_intake === 'Yes' ? 'selected' : ''}>Yes</option>
-                            <option value="No" ${this.formData.liquid_intake === 'No' ? 'selected' : ''}>No</option>
-                            <option value="Partial" ${this.formData.liquid_intake === 'Partial' ? 'selected' : ''}>Partial</option>
-                        </select>
+                        <label class="form-label">Liquid Intake (3 entries required)</label>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Liquid 1</label>
+                                <select class="form-select" id="liquid_1" name="liquid_1">
+                                    <option value="">Select liquid intake...</option>
+                                    <option value="Yes" ${this.formData.liquid_1 === 'Yes' ? 'selected' : ''}>Yes</option>
+                                    <option value="No" ${this.formData.liquid_1 === 'No' ? 'selected' : ''}>No</option>
+                                    <option value="Partial" ${this.formData.liquid_1 === 'Partial' ? 'selected' : ''}>Partial</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Liquid 2</label>
+                                <select class="form-select" id="liquid_2" name="liquid_2">
+                                    <option value="">Select liquid intake...</option>
+                                    <option value="Yes" ${this.formData.liquid_2 === 'Yes' ? 'selected' : ''}>Yes</option>
+                                    <option value="No" ${this.formData.liquid_2 === 'No' ? 'selected' : ''}>No</option>
+                                    <option value="Partial" ${this.formData.liquid_2 === 'Partial' ? 'selected' : ''}>Partial</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Liquid 3</label>
+                                <select class="form-select" id="liquid_3" name="liquid_3">
+                                    <option value="">Select liquid intake...</option>
+                                    <option value="Yes" ${this.formData.liquid_3 === 'Yes' ? 'selected' : ''}>Yes</option>
+                                    <option value="No" ${this.formData.liquid_3 === 'No' ? 'selected' : ''}>No</option>
+                                    <option value="Partial" ${this.formData.liquid_3 === 'Partial' ? 'selected' : ''}>Partial</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                 `;
                 break;
@@ -314,10 +353,15 @@ class MealWizard {
         
         // Add event listeners for dynamic elements
         if (step.id === 2) {
-            document.getElementById('intake_level').addEventListener('change', (e) => {
-                const notesContainer = document.getElementById('notesContainer');
-                notesContainer.style.display = e.target.value === 'Other' ? 'block' : 'none';
-            });
+            const intakeSelect = document.getElementById('intake_level');
+            if (intakeSelect) {
+                intakeSelect.addEventListener('change', (e) => {
+                    const notesContainer = document.getElementById('notesContainer');
+                    if (notesContainer) {
+                        notesContainer.style.display = e.target.value === 'Other' ? 'block' : 'none';
+                    }
+                });
+            }
         }
     }
 
@@ -326,13 +370,17 @@ class MealWizard {
         const progressBar = document.querySelector('#wizardProgress .progress-bar');
         const progressText = document.getElementById('progressText');
         
-        progressBar.style.width = progress + '%';
-        progressText.textContent = `Step ${this.currentStep} of ${this.totalSteps}`;
+        if (progressBar) progressBar.style.width = progress + '%';
+        if (progressText) progressText.textContent = `Step ${this.currentStep} of ${this.totalSteps}`;
         
         // Update navigation buttons
-        document.getElementById('prevBtn').style.display = this.currentStep > 1 ? 'inline-block' : 'none';
-        document.getElementById('nextBtn').style.display = this.currentStep < this.totalSteps ? 'inline-block' : 'none';
-        document.getElementById('submitBtn').style.display = this.currentStep === this.totalSteps ? 'inline-block' : 'none';
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const submitBtn = document.getElementById('submitBtn');
+        
+        if (prevBtn) prevBtn.style.display = this.currentStep > 1 ? 'inline-block' : 'none';
+        if (nextBtn) nextBtn.style.display = this.currentStep < this.totalSteps ? 'inline-block' : 'none';
+        if (submitBtn) submitBtn.style.display = this.currentStep === this.totalSteps ? 'inline-block' : 'none';
     }
 
     saveCurrentStep() {
@@ -341,23 +389,41 @@ class MealWizard {
         
         switch(step.id) {
             case 1: // Vitals
-                this.formData.systolic = document.getElementById('systolic').value;
-                this.formData.diastolic = document.getElementById('diastolic').value;
-                this.formData.pulse = document.getElementById('pulse').value;
+                const systolic = document.getElementById('systolic');
+                const diastolic = document.getElementById('diastolic');
+                const pulse = document.getElementById('pulse');
+                
+                if (systolic) this.formData.systolic = systolic.value;
+                if (diastolic) this.formData.diastolic = diastolic.value;
+                if (pulse) this.formData.pulse = pulse.value;
                 break;
             case 2: // Food Intake
-                this.formData.intake_level = document.getElementById('intake_level').value;
-                this.formData.notes = document.getElementById('notes').value;
+                const intakeLevel = document.getElementById('intake_level');
+                const notes = document.getElementById('notes');
+                
+                if (intakeLevel) this.formData.intake_level = intakeLevel.value;
+                if (notes) this.formData.notes = notes.value;
                 break;
             case 3: // Liquid Intake
-                this.formData.liquid_intake = document.getElementById('liquid_intake').value;
+                const liquid1 = document.getElementById('liquid_1');
+                const liquid2 = document.getElementById('liquid_2');
+                const liquid3 = document.getElementById('liquid_3');
+                
+                if (liquid1) this.formData.liquid_1 = liquid1.value;
+                if (liquid2) this.formData.liquid_2 = liquid2.value;
+                if (liquid3) this.formData.liquid_3 = liquid3.value;
                 break;
             case 4: // Bowel Movement
-                this.formData.size = document.getElementById('size').value;
-                this.formData.consistency = document.getElementById('consistency').value;
+                const size = document.getElementById('size');
+                const consistency = document.getElementById('consistency');
+                
+                if (size) this.formData.size = size.value;
+                if (consistency) this.formData.consistency = consistency.value;
                 break;
             case 5: // Urine Output
-                this.formData.urine_output = document.getElementById('urine_output').value;
+                const urineOutput = document.getElementById('urine_output');
+                
+                if (urineOutput) this.formData.urine_output = urineOutput.value;
                 break;
         }
     }
@@ -395,18 +461,27 @@ class MealWizard {
         formData.append('meal_type', this.currentMeal);
         formData.append('form_data', JSON.stringify(this.formData));
         
+        const csrfToken = document.querySelector('[name=csrf_token]');
+        if (!csrfToken) {
+            alert('CSRF token not found. Please refresh the page.');
+            return;
+        }
+        
         try {
             const response = await fetch(`/resident/{{ resident.id }}/daily-log-submit`, {
                 method: 'POST',
                 body: formData,
                 headers: {
-                    'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+                    'X-CSRFToken': csrfToken.value
                 }
             });
             
             if (response.ok) {
-                const modal = bootstrap.Modal.getInstance(document.getElementById('mealWizardModal'));
-                modal.hide();
+                const modalElement = document.getElementById('mealWizardModal');
+                if (modalElement && typeof bootstrap !== 'undefined') {
+                    const modal = bootstrap.Modal.getInstance(modalElement);
+                    if (modal) modal.hide();
+                }
                 location.reload(); // Refresh to show updated data
             } else {
                 alert('Error saving data. Please try again.');

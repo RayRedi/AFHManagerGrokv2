@@ -758,18 +758,21 @@ def daily_log_submit(resident_id):
             )
             db.session.add(food)
         
-        # Save Liquid Intake
-        if form_data.get('liquid_intake'):
-            # Delete existing liquid intake for the meal
-            LiquidIntake.query.filter_by(resident_id=resident_id, date=today, meal_type=meal_type).delete()
-            
-            liquid = LiquidIntake(
-                resident_id=resident_id,
-                date=today,
-                meal_type=meal_type,
-                intake=form_data['liquid_intake']
-            )
-            db.session.add(liquid)
+        # Save Liquid Intake - Multiple entries
+        # Delete existing liquid intakes for the meal
+        LiquidIntake.query.filter_by(resident_id=resident_id, date=today, meal_type=meal_type).delete()
+        
+        # Save each liquid intake entry
+        for i in range(1, 4):  # Liquid 1, 2, 3
+            liquid_key = f'liquid_{i}'
+            if form_data.get(liquid_key):
+                liquid = LiquidIntake(
+                    resident_id=resident_id,
+                    date=today,
+                    meal_type=meal_type,
+                    intake=f"Liquid {i}: {form_data[liquid_key]}"
+                )
+                db.session.add(liquid)
         
         # Save Bowel Movement
         if form_data.get('size') and form_data.get('consistency'):
