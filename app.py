@@ -36,7 +36,7 @@ def init_medications():
         conn.commit()
     conn.close()
 
-   
+
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///afh.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -674,7 +674,8 @@ def daily_log_wizard(resident_id):
                     )
                     db.session.add(vitals)
 
-                # Save Food, Liquid, Bowel, Urine for each meal
+                # Save Food, Liquid, Bowel,```python
+ Urine for each meal
                 for meal in ['breakfast', 'lunch', 'dinner']:
                     # Food Intake
                     if session['daily_log_wizard'][meal]['food']:
@@ -761,18 +762,18 @@ def daily_log_wizard(resident_id):
 def daily_log_submit(resident_id):
     if current_user.role not in ['admin', 'caregiver']:
         return jsonify({'error': 'Access denied'}), 403
-    
+
     resident = Resident.query.get_or_404(resident_id)
     meal_type = request.form.get('meal_type')
     form_data = json.loads(request.form.get('form_data', '{}'))
     today = date.today()
-    
+
     try:
         # Save Vitals (breakfast only)
         if meal_type == 'breakfast' and form_data.get('systolic') and form_data.get('diastolic') and form_data.get('pulse'):
             # Delete existing vitals for the day
             Vitals.query.filter_by(resident_id=resident_id, date=today, meal_type='breakfast').delete()
-            
+
             vitals = Vitals(
                 resident_id=resident_id,
                 date=today,
@@ -782,12 +783,12 @@ def daily_log_submit(resident_id):
                 pulse=int(form_data['pulse'])
             )
             db.session.add(vitals)
-        
+
         # Save Food Intake
         if form_data.get('intake_level'):
             # Delete existing food intake for the meal
             FoodIntake.query.filter_by(resident_id=resident_id, date=today, meal_type=meal_type).delete()
-            
+
             food = FoodIntake(
                 resident_id=resident_id,
                 date=today,
@@ -796,11 +797,11 @@ def daily_log_submit(resident_id):
                 notes=form_data.get('notes') if form_data.get('intake_level') == 'Other' else None
             )
             db.session.add(food)
-        
+
         # Save Liquid Intake - Multiple entries
         # Delete existing liquid intakes for the meal
         LiquidIntake.query.filter_by(resident_id=resident_id, date=today, meal_type=meal_type).delete()
-        
+
         # Save each liquid intake entry
         for i in range(1, 4):  # Liquid 1, 2, 3
             liquid_key = f'liquid_{i}'
@@ -812,12 +813,12 @@ def daily_log_submit(resident_id):
                     intake=f"Liquid {i}: {form_data[liquid_key]}"
                 )
                 db.session.add(liquid)
-        
+
         # Save Bowel Movement
         if form_data.get('size') and form_data.get('consistency'):
             # Delete existing bowel movement for the meal
             BowelMovement.query.filter_by(resident_id=resident_id, date=today, meal_type=meal_type).delete()
-            
+
             bowel = BowelMovement(
                 resident_id=resident_id,
                 date=today,
@@ -826,12 +827,12 @@ def daily_log_submit(resident_id):
                 consistency=form_data['consistency']
             )
             db.session.add(bowel)
-        
+
         # Save Urine Output
         if form_data.get('urine_output'):
             # Delete existing urine output for the meal
             UrineOutput.query.filter_by(resident_id=resident_id, date=today, meal_type=meal_type).delete()
-            
+
             urine = UrineOutput(
                 resident_id=resident_id,
                 date=today,
@@ -839,16 +840,16 @@ def daily_log_submit(resident_id):
                 output=form_data['urine_output']
             )
             db.session.add(urine)
-        
+
         db.session.commit()
-        
+
         # Audit log
         audit_log = AuditLog(user_id=current_user.id, action=f"Completed {meal_type} log for {resident.name}")
         db.session.add(audit_log)
         db.session.commit()
-        
+
         return jsonify({'success': True})
-    
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -1289,7 +1290,7 @@ if __name__ == '__main__':
             if not MedicationCatalog.query.filter_by(name=med['name']).first():
                 db.session.add(MedicationCatalog(**med))
         db.session.commit()
-        
+
         # Sync ELDERLY_MEDS to MedicationCatalog
         print("Syncing medications from ELDERLY_MEDS...")
         for brand_name, generic_name, common_uses in ELDERLY_MEDS:
@@ -1305,7 +1306,35 @@ if __name__ == '__main__':
                 db.session.add(catalog_entry)
         db.session.commit()
         print("Medication sync complete!")
-    
+
+        # Migrate end_date to expiration_date column if needed
+        try:
+            # Test if expiration_date column exists
+            db.session.execute("SELECT expiration_date FROM medication LIMIT 1")
+            print("expiration_date column already exists")
+        except Exception as e:
+            if "no such column" in str(e):
+                print("Migrating medication table to use expiration_date...")
+                try:
+                    # Check if end_date column exists
+                    try:
+                        db.session.execute("SELECT end_date FROM medication LIMIT 1")
+                        # end_date exists, rename it to expiration_date
+                        print("Renaming end_date to expiration_date...")
+                        db.session.execute("ALTER TABLE medication RENAME COLUMN end_date TO expiration_date")
+                        db.session.commit()
+                        print("Successfully renamed end_date to expiration_date!")
+                    except:
+                        # end_date doesn't exist, create expiration_date
+                        print("Adding expiration_date column...")
+                        db.session.execute("ALTER TABLE medication ADD COLUMN expiration_date DATE")
+                        db.session.commit()
+                        print("expiration_date column added successfully!")
+                except Exception as alter_error:
+                    print(f"Error updating medication table: {alter_error}")
+            else:
+                print(f"Unexpected error: {e}")
+
     import os
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port, debug=False)
