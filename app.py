@@ -1763,53 +1763,7 @@ def init_medications():
             ('Diclegis', 'Doxylamine/Pyridoxine', 'Pregnancy nausea'),
 
             # End of 5000 medication expansion
-
-            # Additional medications for elderly care facilities
-            ('Probiotic', 'Lactobacillus/Bifidobacterium', 'Digestive health, gut flora'),
-            ('Rexulti', 'Brexpiprazole', 'Depression, schizophrenia'),
-            ('Tamsulosin', 'Tamsulosin', 'Enlarged prostate'),
-            ('Gabapentin', 'Gabapentin', 'Neuropathy, seizures'),
-            ('Olanzapine', 'Olanzapine', 'Bipolar disorder, schizophrenia'),
-            ('Sodium Chloride Irrigation', 'Sodium chloride 0.9%', 'Wound irrigation, nasal irrigation'),
-            ('Lidocaine Cream', 'Lidocaine topical', 'Local pain relief'),
-            ('Buspirone', 'Buspirone', 'Anxiety'),
-            ('Calprotect', 'Calcium alginate', 'Wound protection'),
-            ('Lidocaine Pain Relief Patch', 'Lidocaine 4% patch', 'Localized pain relief'),
-            ('Losartan', 'Losartan', 'High blood pressure'),
-            ('Metoprolol Tartrate', 'Metoprolol tartrate', 'High blood pressure, heart failure'),
-            ('Quetiapine Fumarate', 'Quetiapine fumarate', 'Bipolar disorder, schizophrenia'),
-            ('Tears Drops', 'Artificial tears', 'Dry eyes'),
-            ('Vitamin D3', 'Cholecalciferol', 'Bone health, vitamin deficiency'),
-            ('Iodosorb Gel', 'Cadexomer iodine', 'Wound care, infection control'),
-            ('Levothyroxine Sodium', 'Levothyroxine sodium', 'Hypothyroidism'),
-            ('Sertraline', 'Sertraline', 'Depression, anxiety'),
-            ('Albuterol', 'Albuterol', 'Asthma, bronchospasm'),
-            ('Geri-Tussin', 'Guaifenesin', 'Cough, mucus'),
-            ('Oxygen (O2)', 'Oxygen', 'Respiratory support'),
-            ('Triad Hydrophilic Wound Dressing', 'Hydrocolloid paste', 'Wound care'),
-            ('Thick-It Original Powder', 'Food thickener', 'Swallowing difficulties'),
-            ('Morphine Sulfate', 'Morphine sulfate', 'Severe pain'),
-            ('A and D Ointment', 'Vitamins A and D', 'Skin protection, diaper rash'),
-            ('Diltiazem', 'Diltiazem', 'High blood pressure, angina'),
-            ('Cetaphil Cream', 'Moisturizing cream', 'Dry skin, sensitive skin'),
-            ('Cranberry', 'Cranberry extract', 'UTI prevention'),
-            ('Meclizine HCL', 'Meclizine hydrochloride', 'Motion sickness, vertigo'),
-            ('Phenazopyridine HCL', 'Phenazopyridine hydrochloride', 'Urinary pain relief'),
-            ('Enema', 'Phosphate enema', 'Constipation'),
-            ('Gas Relief', 'Simethicone', 'Gas, bloating'),
-            ('Guaifenesin', 'Guaifenesin', 'Cough, mucus'),
-            ('Milk of Magnesia', 'Magnesium hydroxide', 'Constipation, heartburn'),
-            ('Ondansetron', 'Ondansetron', 'Nausea, vomiting'),
         ]
-        
-        c.executemany('INSERT INTO medications (brand_name, generic_name, common_uses) VALUES (?, ?, ?)', elderly_meds)
-        conn.commit()
-
-    conn.close()
-
-init_medications()
-
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///afh.db'</old_str>
         
         c.executemany('INSERT INTO medications (brand_name, generic_name, common_uses) VALUES (?, ?, ?)', elderly_meds)
         conn.commit()
