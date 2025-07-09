@@ -134,3 +134,19 @@ class MedicationCatalog(db.Model):
     _default_notes = db.Column(EncryptedText)
     form = db.Column(db.String(50))
     _common_uses = db.Column(EncryptedText)
+
+    @hybrid_property
+    def default_notes(self):
+        return self._default_notes
+
+    @default_notes.setter
+    def default_notes(self, value):
+        self._default_notes = value
+
+    @hybrid_property
+    def common_uses(self):
+        return self._common_uses
+
+    @common_uses.setter
+    def common_uses(self, value):
+        self._common_uses = value
