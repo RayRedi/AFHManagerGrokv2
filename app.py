@@ -1800,7 +1800,7 @@ def init_medications():
             ('Guaifenesin', 'Guaifenesin', 'Cough, chest congestion'),
             ('Milk of Magnesia', 'Magnesium hydroxide', 'Constipation, heartburn'),
             ('Ondansetron', 'Ondansetron', 'Nausea, vomiting, chemotherapy nausea'),
-        ]</old_str>
+        ]
         
         c.executemany('INSERT INTO medications (brand_name, generic_name, common_uses) VALUES (?, ?, ?)', elderly_meds)
         conn.commit()
