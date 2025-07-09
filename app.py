@@ -717,6 +717,100 @@ def daily_log_wizard(resident_id):
 
     return render_template('daily_log_wizard.html', resident=resident, form=form, current_step=current_step, current_meal=current_meal, steps=steps, current_step_index=current_step_index)
 
+@app.route('/resident/<int:resident_id>/daily-log-submit', methods=['POST'])
+@login_required
+def daily_log_submit(resident_id):
+    if current_user.role not in ['admin', 'caregiver']:
+        return jsonify({'error': 'Access denied'}), 403
+    
+    resident = Resident.query.get_or_404(resident_id)
+    meal_type = request.form.get('meal_type')
+    form_data = json.loads(request.form.get('form_data', '{}'))
+    today = date.today()
+    
+    try:
+        # Save Vitals (breakfast only)
+        if meal_type == 'breakfast' and form_data.get('systolic') and form_data.get('diastolic') and form_data.get('pulse'):
+            # Delete existing vitals for the day
+            Vitals.query.filter_by(resident_id=resident_id, date=today, meal_type='breakfast').delete()
+            
+            vitals = Vitals(
+                resident_id=resident_id,
+                date=today,
+                meal_type='breakfast',
+                systolic=int(form_data['systolic']),
+                diastolic=int(form_data['diastolic']),
+                pulse=int(form_data['pulse'])
+            )
+            db.session.add(vitals)
+        
+        # Save Food Intake
+        if form_data.get('intake_level'):
+            # Delete existing food intake for the meal
+            FoodIntake.query.filter_by(resident_id=resident_id, date=today, meal_type=meal_type).delete()
+            
+            food = FoodIntake(
+                resident_id=resident_id,
+                date=today,
+                meal_type=meal_type,
+                intake_level=form_data['intake_level'],
+                notes=form_data.get('notes') if form_data.get('intake_level') == 'Other' else None
+            )
+            db.session.add(food)
+        
+        # Save Liquid Intake
+        if form_data.get('liquid_intake'):
+            # Delete existing liquid intake for the meal
+            LiquidIntake.query.filter_by(resident_id=resident_id, date=today, meal_type=meal_type).delete()
+            
+            liquid = LiquidIntake(
+                resident_id=resident_id,
+                date=today,
+                meal_type=meal_type,
+                intake=form_data['liquid_intake']
+            )
+            db.session.add(liquid)
+        
+        # Save Bowel Movement
+        if form_data.get('size') and form_data.get('consistency'):
+            # Delete existing bowel movement for the meal
+            BowelMovement.query.filter_by(resident_id=resident_id, date=today, meal_type=meal_type).delete()
+            
+            bowel = BowelMovement(
+                resident_id=resident_id,
+                date=today,
+                meal_type=meal_type,
+                size=form_data['size'],
+                consistency=form_data['consistency']
+            )
+            db.session.add(bowel)
+        
+        # Save Urine Output
+        if form_data.get('urine_output'):
+            # Delete existing urine output for the meal
+            UrineOutput.query.filter_by(resident_id=resident_id, date=today, meal_type=meal_type).delete()
+            
+            urine = UrineOutput(
+                resident_id=resident_id,
+                date=today,
+                meal_type=meal_type,
+                output=form_data['urine_output']
+            )
+            db.session.add(urine)
+        
+        db.session.commit()
+        
+        # Audit log
+        audit_log = AuditLog(user_id=current_user.id, action=f"Completed {meal_type} log for {resident.name}")
+        db.session.add(audit_log)
+        db.session.commit()
+        
+        return jsonify({'success': True})
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/resident/<int:resident_id>/logs', methods=['GET', 'POST'])
 @login_required
 def daily_logs(resident_id):
@@ -728,6 +822,7 @@ def daily_logs(resident_id):
     liquid_intakes = LiquidIntake.query.filter_by(resident_id=resident_id, date=log_date).all()
     bowel_movements = BowelMovement.query.filter_by(resident_id=resident_id, date=log_date).all()
     urine_outputs = UrineOutput.query.filter_by(resident_id=resident_id, date=log_date).all()
+    vitals = Vitals.query.filter_by(resident_id=resident_id, date=log_date, meal_type='breakfast').first()
 
     missing_logs = []
     meal_types = ['breakfast', 'lunch', 'dinner']
@@ -818,7 +913,7 @@ def daily_logs(resident_id):
     return render_template('daily_logs.html', resident=resident, log_date=log_date,
                           food_intakes=food_intakes, liquid_intakes=liquid_intakes,
                           bowel_movements=bowel_movements, urine_outputs=urine_outputs,
-                          missing_logs=missing_logs, prev_date=prev_date, next_date=next_date,
+                          vitals=vitals, missing_logs=missing_logs, prev_date=prev_date, next_date=next_date,
                           food_form=food_form, liquid_form=liquid_form, bowel_form=bowel_form, urine_form=urine_form)
 
 @app.route('/resident/<int:resident_id>/medications', methods=['GET', 'POST'])

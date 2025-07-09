@@ -2,6 +2,8 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 <div class="container-fluid">
     <div class="row mb-4">
         <div class="col-12">
@@ -25,308 +27,400 @@
         </div>
     </div>
 
-    <!-- Daily Summary and Alerts -->
-    {% if missing_logs %}
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <div class="alert alert-warning mb-0">
-                <h5 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> Missing Logs</h5>
-                <ul class="mb-0">
-                    {% for log in missing_logs %}
-                        <li>{{ log }}</li>
-                    {% endfor %}
-                </ul>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- Show All / Collapse All Controls -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <div class="d-flex justify-content-center gap-2">
-                <button type="button" class="btn btn-outline-primary" onclick="expandAllSteps()">
-                    <i class="bi bi-arrows-expand"></i> Show All Steps
-                </button>
-                <button type="button" class="btn btn-outline-secondary" onclick="collapseAllSteps()">
-                    <i class="bi bi-arrows-collapse"></i> Collapse All Steps
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Meal Sections -->
-    {% for meal_type in ['breakfast', 'lunch', 'dinner'] %}
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-primary text-white">
-            <h3 class="card-title mb-0">{{ meal_type.title() }}</h3>
-        </div>
-        <div class="card-body p-0">
-            <div class="accordion" id="accordion{{ meal_type.title() }}">
-                
-                <!-- Step 1: Vitals (Breakfast only) -->
-                {% if meal_type == 'breakfast' %}
-                <div class="accordion-item">
-                    <h2 class="accordion-header" id="heading{{ meal_type.title() }}Step1">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
-                                data-bs-target="#collapse{{ meal_type.title() }}Step1" aria-expanded="false">
-                            <span class="badge bg-primary me-2">Step 1</span>
-                            <strong>Vitals</strong>
-                            {% set vitals = namespace(found=false) %}
-                            {% for food in food_intakes %}
-                                {% if food.meal_type == 'breakfast' %}
-                                    {% set vitals.found = true %}
-                                {% endif %}
-                            {% endfor %}
-                            <span class="ms-auto badge {{ 'bg-success' if vitals.found else 'bg-secondary' }}">
-                                {{ 'Recorded' if vitals.found else 'Not Recorded' }}
-                            </span>
-                        </button>
-                    </h2>
-                    <div id="collapse{{ meal_type.title() }}Step1" class="accordion-collapse collapse" 
-                         data-bs-parent="#accordion{{ meal_type.title() }}">
-                        <div class="accordion-body">
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <strong>Blood Pressure:</strong> Not recorded
-                                </div>
-                                <div class="col-md-4">
-                                    <strong>Pulse:</strong> Not recorded
-                                </div>
-                                <div class="col-md-4">
-                                    <em class="text-muted">Vitals taken during breakfast</em>
-                                </div>
+    <!-- Meal Selection Cards -->
+    <div class="row mb-4">
+        {% for meal_type in ['breakfast', 'lunch', 'dinner'] %}
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm h-100 meal-card" data-meal="{{ meal_type }}">
+                <div class="card-body text-center">
+                    <div class="meal-icon mb-3">
+                        {% if meal_type == 'breakfast' %}
+                            <i class="bi bi-cup-hot" style="font-size: 3rem; color: #ff6b35;"></i>
+                        {% elif meal_type == 'lunch' %}
+                            <i class="bi bi-bowl-rice" style="font-size: 3rem; color: #f7931e;"></i>
+                        {% else %}
+                            <i class="bi bi-moon-stars" style="font-size: 3rem; color: #6b48ff;"></i>
+                        {% endif %}
+                    </div>
+                    <h3 class="card-title">{{ meal_type.title() }}</h3>
+                    
+                    <!-- Progress indicators -->
+                    <div class="meal-progress mb-3">
+                        {% set meal_food = food_intakes | selectattr('meal_type', 'equalto', meal_type) | list %}
+                        {% set meal_liquid = liquid_intakes | selectattr('meal_type', 'equalto', meal_type) | list %}
+                        {% set meal_bowel = bowel_movements | selectattr('meal_type', 'equalto', meal_type) | list %}
+                        {% set meal_urine = urine_outputs | selectattr('meal_type', 'equalto', meal_type) | list %}
+                        {% set vitals_recorded = vitals and meal_type == 'breakfast' %}
+                        
+                        {% set total_steps = 5 if meal_type == 'breakfast' else 4 %}
+                        {% set completed_steps = 0 %}
+                        {% if meal_type == 'breakfast' and vitals_recorded %}
+                            {% set completed_steps = completed_steps + 1 %}
+                        {% endif %}
+                        {% if meal_food %}
+                            {% set completed_steps = completed_steps + 1 %}
+                        {% endif %}
+                        {% if meal_liquid %}
+                            {% set completed_steps = completed_steps + 1 %}
+                        {% endif %}
+                        {% if meal_bowel %}
+                            {% set completed_steps = completed_steps + 1 %}
+                        {% endif %}
+                        {% if meal_urine %}
+                            {% set completed_steps = completed_steps + 1 %}
+                        {% endif %}
+                        
+                        <div class="progress mb-2" style="height: 20px;">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: {{ (completed_steps / total_steps) * 100 }}%">
+                                {{ completed_steps }}/{{ total_steps }}
                             </div>
                         </div>
-                    </div>
-                </div>
-                {% endif %}
-
-                <!-- Step 2: Food Intake -->
-                <div class="accordion-item">
-                    <h2 class="accordion-header" id="heading{{ meal_type.title() }}Step2">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
-                                data-bs-target="#collapse{{ meal_type.title() }}Step2" aria-expanded="false">
-                            <span class="badge bg-primary me-2">Step {{ '2' if meal_type == 'breakfast' else '1' }}</span>
-                            <strong>Food Intake</strong>
-                            {% set meal_food = food_intakes | selectattr('meal_type', 'equalto', meal_type) | list %}
-                            <span class="ms-auto badge {{ 'bg-success' if meal_food else 'bg-secondary' }}">
-                                {{ 'Recorded' if meal_food else 'Not Recorded' }}
-                            </span>
-                        </button>
-                    </h2>
-                    <div id="collapse{{ meal_type.title() }}Step2" class="accordion-collapse collapse" 
-                         data-bs-parent="#accordion{{ meal_type.title() }}">
-                        <div class="accordion-body">
-                            {% set meal_food = food_intakes | selectattr('meal_type', 'equalto', meal_type) | list %}
-                            {% if meal_food %}
-                                {% for food in meal_food %}
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <div>
-                                        <strong>Intake Level:</strong> {{ food.intake_level }}
-                                        {% if food.notes %}
-                                        <br><small class="text-muted">Notes: {{ food.notes }}</small>
-                                        {% endif %}
-                                    </div>
-                                    <span class="badge bg-success">Completed</span>
-                                </div>
-                                {% endfor %}
-                            {% else %}
-                                <div class="text-muted">
-                                    <i class="bi bi-info-circle"></i> No food intake recorded for {{ meal_type }}
-                                </div>
+                        
+                        <div class="step-indicators">
+                            {% if meal_type == 'breakfast' %}
+                                <span class="badge {{ 'bg-success' if vitals_recorded else 'bg-secondary' }} me-1">Vitals</span>
                             {% endif %}
+                            <span class="badge {{ 'bg-success' if meal_food else 'bg-secondary' }} me-1">Food</span>
+                            <span class="badge {{ 'bg-success' if meal_liquid else 'bg-secondary' }} me-1">Liquid</span>
+                            <span class="badge {{ 'bg-success' if meal_bowel else 'bg-secondary' }} me-1">Bowel</span>
+                            <span class="badge {{ 'bg-success' if meal_urine else 'bg-secondary' }} me-1">Urine</span>
                         </div>
                     </div>
+                    
+                    <button class="btn btn-primary btn-lg w-100 start-meal-btn" data-meal="{{ meal_type }}">
+                        {% if completed_steps == total_steps %}
+                            <i class="bi bi-check-circle me-2"></i>Review & Edit
+                        {% else %}
+                            <i class="bi bi-play-circle me-2"></i>Start Logging
+                        {% endif %}
+                    </button>
                 </div>
-
-                <!-- Step 3: Liquid Intake -->
-                <div class="accordion-item">
-                    <h2 class="accordion-header" id="heading{{ meal_type.title() }}Step3">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
-                                data-bs-target="#collapse{{ meal_type.title() }}Step3" aria-expanded="false">
-                            <span class="badge bg-primary me-2">Step {{ '3' if meal_type == 'breakfast' else '2' }}</span>
-                            <strong>Liquid Intake</strong>
-                            {% set meal_liquid = liquid_intakes | selectattr('meal_type', 'equalto', meal_type) | list %}
-                            <span class="ms-auto badge {{ 'bg-success' if meal_liquid else 'bg-secondary' }}">
-                                {{ 'Recorded' if meal_liquid else 'Not Recorded' }}
-                            </span>
-                        </button>
-                    </h2>
-                    <div id="collapse{{ meal_type.title() }}Step3" class="accordion-collapse collapse" 
-                         data-bs-parent="#accordion{{ meal_type.title() }}">
-                        <div class="accordion-body">
-                            {% set meal_liquid = liquid_intakes | selectattr('meal_type', 'equalto', meal_type) | list %}
-                            {% if meal_liquid %}
-                                {% for liquid in meal_liquid %}
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <div>
-                                        <strong>Intake:</strong> {{ liquid.intake }}
-                                    </div>
-                                    <span class="badge bg-success">Completed</span>
-                                </div>
-                                {% endfor %}
-                            {% else %}
-                                <div class="text-muted">
-                                    <i class="bi bi-info-circle"></i> No liquid intake recorded for {{ meal_type }}
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Step 4: Bowel Movement -->
-                <div class="accordion-item">
-                    <h2 class="accordion-header" id="heading{{ meal_type.title() }}Step4">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
-                                data-bs-target="#collapse{{ meal_type.title() }}Step4" aria-expanded="false">
-                            <span class="badge bg-primary me-2">Step {{ '4' if meal_type == 'breakfast' else '3' }}</span>
-                            <strong>Bowel Movement</strong>
-                            {% set meal_bowel = bowel_movements | selectattr('meal_type', 'equalto', meal_type) | list %}
-                            <span class="ms-auto badge {{ 'bg-success' if meal_bowel else 'bg-secondary' }}">
-                                {{ 'Recorded' if meal_bowel else 'Not Recorded' }}
-                            </span>
-                        </button>
-                    </h2>
-                    <div id="collapse{{ meal_type.title() }}Step4" class="accordion-collapse collapse" 
-                         data-bs-parent="#accordion{{ meal_type.title() }}">
-                        <div class="accordion-body">
-                            {% set meal_bowel = bowel_movements | selectattr('meal_type', 'equalto', meal_type) | list %}
-                            {% if meal_bowel %}
-                                {% for bowel in meal_bowel %}
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <div>
-                                        <strong>Size:</strong> {{ bowel.size }} |
-                                        <strong>Consistency:</strong> {{ bowel.consistency }}
-                                    </div>
-                                    <span class="badge bg-success">Completed</span>
-                                </div>
-                                {% endfor %}
-                            {% else %}
-                                <div class="text-muted">
-                                    <i class="bi bi-info-circle"></i> No bowel movement recorded for {{ meal_type }}
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Step 5: Urine Output -->
-                <div class="accordion-item">
-                    <h2 class="accordion-header" id="heading{{ meal_type.title() }}Step5">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
-                                data-bs-target="#collapse{{ meal_type.title() }}Step5" aria-expanded="false">
-                            <span class="badge bg-primary me-2">Step {{ '5' if meal_type == 'breakfast' else '4' }}</span>
-                            <strong>Urine Output</strong>
-                            {% set meal_urine = urine_outputs | selectattr('meal_type', 'equalto', meal_type) | list %}
-                            <span class="ms-auto badge {{ 'bg-success' if meal_urine else 'bg-secondary' }}">
-                                {{ 'Recorded' if meal_urine else 'Not Recorded' }}
-                            </span>
-                        </button>
-                    </h2>
-                    <div id="collapse{{ meal_type.title() }}Step5" class="accordion-collapse collapse" 
-                         data-bs-parent="#accordion{{ meal_type.title() }}">
-                        <div class="accordion-body">
-                            {% set meal_urine = urine_outputs | selectattr('meal_type', 'equalto', meal_type) | list %}
-                            {% if meal_urine %}
-                                {% for urine in meal_urine %}
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <div>
-                                        <strong>Output:</strong> {{ urine.output }}
-                                    </div>
-                                    <span class="badge bg-success">Completed</span>
-                                </div>
-                                {% endfor %}
-                            {% else %}
-                                <div class="text-muted">
-                                    <i class="bi bi-info-circle"></i> No urine output recorded for {{ meal_type }}
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-
             </div>
         </div>
+        {% endfor %}
     </div>
-    {% endfor %}
 
-    <!-- Add New Log Entries (Admin/Caregiver only) -->
-    {% if current_user.role in ['admin', 'caregiver'] %}
-    <div class="card shadow-sm mb-4">
-        <div class="card-header">
-            <h4 class="card-title mb-0">Add New Log Entry</h4>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <h5>Food Intake</h5>
-                    <form method="POST">
-                        {{ food_form.hidden_tag() }}
-                        <input type="hidden" name="add_food" value="1">
-                        <div class="mb-2">
-                            {{ food_form.meal_type.label(class="form-label") }}
-                            {{ food_form.meal_type(class="form-select") }}
-                        </div>
-                        <div class="mb-2">
-                            {{ food_form.description.label(class="form-label") }}
-                            {{ food_form.description(class="form-control") }}
-                        </div>
-                        {{ food_form.submit(class="btn btn-primary btn-sm") }}
-                    </form>
+    <!-- Step-by-Step Wizard Modal -->
+    <div class="modal fade" id="mealWizardModal" tabindex="-1" aria-labelledby="mealWizardModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="mealWizardModalLabel">Daily Log Wizard</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="col-md-6 mb-3">
-                    <h5>Bowel Movement</h5>
-                    <form method="POST">
-                        {{ bowel_form.hidden_tag() }}
-                        <input type="hidden" name="add_bowel" value="1">
-                        <div class="mb-2">
-                            {{ bowel_form.size.label(class="form-label") }}
-                            {{ bowel_form.size(class="form-select") }}
+                <div class="modal-body">
+                    <!-- Progress Bar -->
+                    <div class="progress mb-4" style="height: 30px;" id="wizardProgress">
+                        <div class="progress-bar" role="progressbar" style="width: 0%">
+                            <span id="progressText">Step 1 of 5</span>
                         </div>
-                        <div class="mb-2">
-                            {{ bowel_form.consistency.label(class="form-label") }}
-                            {{ bowel_form.consistency(class="form-select") }}
+                    </div>
+                    
+                    <!-- Form Container -->
+                    <form id="mealWizardForm">
+                        <input type="hidden" id="currentMeal" name="meal_type" value="">
+                        <input type="hidden" id="currentStep" name="step" value="1">
+                        
+                        <!-- Step Content -->
+                        <div id="stepContent">
+                            <!-- Dynamic content will be inserted here -->
                         </div>
-                        {{ bowel_form.submit(class="btn btn-primary btn-sm") }}
+                        
+                        <!-- Navigation Buttons -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-outline-secondary" id="prevBtn" style="display: none;">
+                                <i class="bi bi-chevron-left"></i> Previous
+                            </button>
+                            <div class="ms-auto">
+                                <button type="button" class="btn btn-outline-primary me-2" id="skipBtn">Skip</button>
+                                <button type="button" class="btn btn-primary" id="nextBtn">Next</button>
+                                <button type="button" class="btn btn-success" id="submitBtn" style="display: none;">
+                                    <i class="bi bi-check-circle me-2"></i>Complete
+                                </button>
+                            </div>
+                        </div>
                     </form>
                 </div>
             </div>
         </div>
     </div>
-    {% endif %}
 </div>
 
 <script>
-function expandAllSteps() {
-    const accordions = document.querySelectorAll('.accordion-collapse');
-    accordions.forEach(accordion => {
-        if (!accordion.classList.contains('show')) {
-            const button = document.querySelector(`[data-bs-target="#${accordion.id}"]`);
-            button.click();
+class MealWizard {
+    constructor() {
+        this.currentMeal = '';
+        this.currentStep = 1;
+        this.totalSteps = 5;
+        this.formData = {};
+        this.stepDefinitions = {
+            breakfast: [
+                { id: 1, name: 'Vitals', required: true },
+                { id: 2, name: 'Food Intake', required: true },
+                { id: 3, name: 'Liquid Intake', required: true },
+                { id: 4, name: 'Bowel Movement', required: true },
+                { id: 5, name: 'Urine Output', required: true }
+            ],
+            lunch: [
+                { id: 2, name: 'Food Intake', required: true },
+                { id: 3, name: 'Liquid Intake', required: true },
+                { id: 4, name: 'Bowel Movement', required: true },
+                { id: 5, name: 'Urine Output', required: true }
+            ],
+            dinner: [
+                { id: 2, name: 'Food Intake', required: true },
+                { id: 3, name: 'Liquid Intake', required: true },
+                { id: 4, name: 'Bowel Movement', required: true },
+                { id: 5, name: 'Urine Output', required: true }
+            ]
+        };
+        this.init();
+    }
+
+    init() {
+        // Meal card click handlers
+        document.querySelectorAll('.start-meal-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const meal = e.target.dataset.meal;
+                this.startMealWizard(meal);
+            });
+        });
+
+        // Wizard navigation
+        document.getElementById('nextBtn').addEventListener('click', () => this.nextStep());
+        document.getElementById('prevBtn').addEventListener('click', () => this.prevStep());
+        document.getElementById('skipBtn').addEventListener('click', () => this.skipStep());
+        document.getElementById('submitBtn').addEventListener('click', () => this.submitForm());
+    }
+
+    startMealWizard(meal) {
+        this.currentMeal = meal;
+        this.currentStep = 1;
+        this.formData = {};
+        this.totalSteps = this.stepDefinitions[meal].length;
+        
+        document.getElementById('currentMeal').value = meal;
+        document.getElementById('currentStep').value = '1';
+        
+        this.renderStep();
+        this.updateProgress();
+        
+        const modal = new bootstrap.Modal(document.getElementById('mealWizardModal'));
+        modal.show();
+    }
+
+    renderStep() {
+        const stepContent = document.getElementById('stepContent');
+        const steps = this.stepDefinitions[this.currentMeal];
+        const step = steps[this.currentStep - 1];
+        
+        let html = `<h4 class="mb-3">${step.name} - ${this.currentMeal.charAt(0).toUpperCase() + this.currentMeal.slice(1)}</h4>`;
+        
+        switch(step.id) {
+            case 1: // Vitals
+                html += `
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Systolic Blood Pressure</label>
+                            <input type="number" class="form-control" id="systolic" name="systolic" 
+                                   placeholder="e.g., 120" value="${this.formData.systolic || ''}">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Diastolic Blood Pressure</label>
+                            <input type="number" class="form-control" id="diastolic" name="diastolic" 
+                                   placeholder="e.g., 80" value="${this.formData.diastolic || ''}">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Pulse</label>
+                            <input type="number" class="form-control" id="pulse" name="pulse" 
+                                   placeholder="e.g., 70" value="${this.formData.pulse || ''}">
+                        </div>
+                    </div>
+                `;
+                break;
+            case 2: // Food Intake
+                html += `
+                    <div class="mb-3">
+                        <label class="form-label">Food Intake Level</label>
+                        <select class="form-select" id="intake_level" name="intake_level">
+                            <option value="">Select intake level...</option>
+                            <option value="25%" ${this.formData.intake_level === '25%' ? 'selected' : ''}>25%</option>
+                            <option value="50%" ${this.formData.intake_level === '50%' ? 'selected' : ''}>50%</option>
+                            <option value="75%" ${this.formData.intake_level === '75%' ? 'selected' : ''}>75%</option>
+                            <option value="100%" ${this.formData.intake_level === '100%' ? 'selected' : ''}>100%</option>
+                            <option value="Ensure" ${this.formData.intake_level === 'Ensure' ? 'selected' : ''}>Ensure</option>
+                            <option value="Other" ${this.formData.intake_level === 'Other' ? 'selected' : ''}>Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="notesContainer" style="display: ${this.formData.intake_level === 'Other' ? 'block' : 'none'};">
+                        <label class="form-label">Notes (for Other)</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3">${this.formData.notes || ''}</textarea>
+                    </div>
+                `;
+                break;
+            case 3: // Liquid Intake
+                html += `
+                    <div class="mb-3">
+                        <label class="form-label">Liquid Intake</label>
+                        <select class="form-select" id="liquid_intake" name="liquid_intake">
+                            <option value="">Select liquid intake...</option>
+                            <option value="Yes" ${this.formData.liquid_intake === 'Yes' ? 'selected' : ''}>Yes</option>
+                            <option value="No" ${this.formData.liquid_intake === 'No' ? 'selected' : ''}>No</option>
+                            <option value="Partial" ${this.formData.liquid_intake === 'Partial' ? 'selected' : ''}>Partial</option>
+                        </select>
+                    </div>
+                `;
+                break;
+            case 4: // Bowel Movement
+                html += `
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Size</label>
+                            <select class="form-select" id="size" name="size">
+                                <option value="">Select size...</option>
+                                <option value="Small" ${this.formData.size === 'Small' ? 'selected' : ''}>Small</option>
+                                <option value="Medium" ${this.formData.size === 'Medium' ? 'selected' : ''}>Medium</option>
+                                <option value="Large" ${this.formData.size === 'Large' ? 'selected' : ''}>Large</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Consistency</label>
+                            <select class="form-select" id="consistency" name="consistency">
+                                <option value="">Select consistency...</option>
+                                <option value="Soft" ${this.formData.consistency === 'Soft' ? 'selected' : ''}>Soft</option>
+                                <option value="Medium" ${this.formData.consistency === 'Medium' ? 'selected' : ''}>Medium</option>
+                                <option value="Hard" ${this.formData.consistency === 'Hard' ? 'selected' : ''}>Hard</option>
+                            </select>
+                        </div>
+                    </div>
+                `;
+                break;
+            case 5: // Urine Output
+                html += `
+                    <div class="mb-3">
+                        <label class="form-label">Urine Output</label>
+                        <select class="form-select" id="urine_output" name="urine_output">
+                            <option value="">Select urine output...</option>
+                            <option value="Yes" ${this.formData.urine_output === 'Yes' ? 'selected' : ''}>Yes</option>
+                            <option value="No" ${this.formData.urine_output === 'No' ? 'selected' : ''}>No</option>
+                        </select>
+                    </div>
+                `;
+                break;
         }
-    });
-}
+        
+        stepContent.innerHTML = html;
+        
+        // Add event listeners for dynamic elements
+        if (step.id === 2) {
+            document.getElementById('intake_level').addEventListener('change', (e) => {
+                const notesContainer = document.getElementById('notesContainer');
+                notesContainer.style.display = e.target.value === 'Other' ? 'block' : 'none';
+            });
+        }
+    }
 
-function collapseAllSteps() {
-    const accordions = document.querySelectorAll('.accordion-collapse.show');
-    accordions.forEach(accordion => {
-        const button = document.querySelector(`[data-bs-target="#${accordion.id}"]`);
-        button.click();
-    });
-}
+    updateProgress() {
+        const progress = (this.currentStep / this.totalSteps) * 100;
+        const progressBar = document.querySelector('#wizardProgress .progress-bar');
+        const progressText = document.getElementById('progressText');
+        
+        progressBar.style.width = progress + '%';
+        progressText.textContent = `Step ${this.currentStep} of ${this.totalSteps}`;
+        
+        // Update navigation buttons
+        document.getElementById('prevBtn').style.display = this.currentStep > 1 ? 'inline-block' : 'none';
+        document.getElementById('nextBtn').style.display = this.currentStep < this.totalSteps ? 'inline-block' : 'none';
+        document.getElementById('submitBtn').style.display = this.currentStep === this.totalSteps ? 'inline-block' : 'none';
+    }
 
-// Auto-expand sections with recorded data on page load
-document.addEventListener('DOMContentLoaded', function() {
-    const recordedBadges = document.querySelectorAll('.badge.bg-success');
-    recordedBadges.forEach(badge => {
-        if (badge.textContent.trim() === 'Recorded') {
-            const button = badge.closest('.accordion-header').querySelector('button');
-            if (button && !button.getAttribute('aria-expanded') === 'true') {
-                setTimeout(() => button.click(), 100);
+    saveCurrentStep() {
+        const steps = this.stepDefinitions[this.currentMeal];
+        const step = steps[this.currentStep - 1];
+        
+        switch(step.id) {
+            case 1: // Vitals
+                this.formData.systolic = document.getElementById('systolic').value;
+                this.formData.diastolic = document.getElementById('diastolic').value;
+                this.formData.pulse = document.getElementById('pulse').value;
+                break;
+            case 2: // Food Intake
+                this.formData.intake_level = document.getElementById('intake_level').value;
+                this.formData.notes = document.getElementById('notes').value;
+                break;
+            case 3: // Liquid Intake
+                this.formData.liquid_intake = document.getElementById('liquid_intake').value;
+                break;
+            case 4: // Bowel Movement
+                this.formData.size = document.getElementById('size').value;
+                this.formData.consistency = document.getElementById('consistency').value;
+                break;
+            case 5: // Urine Output
+                this.formData.urine_output = document.getElementById('urine_output').value;
+                break;
+        }
+    }
+
+    nextStep() {
+        this.saveCurrentStep();
+        if (this.currentStep < this.totalSteps) {
+            this.currentStep++;
+            this.renderStep();
+            this.updateProgress();
+        }
+    }
+
+    prevStep() {
+        this.saveCurrentStep();
+        if (this.currentStep > 1) {
+            this.currentStep--;
+            this.renderStep();
+            this.updateProgress();
+        }
+    }
+
+    skipStep() {
+        if (this.currentStep < this.totalSteps) {
+            this.currentStep++;
+            this.renderStep();
+            this.updateProgress();
+        }
+    }
+
+    async submitForm() {
+        this.saveCurrentStep();
+        
+        const formData = new FormData();
+        formData.append('meal_type', this.currentMeal);
+        formData.append('form_data', JSON.stringify(this.formData));
+        
+        try {
+            const response = await fetch(`/resident/{{ resident.id }}/daily-log-submit`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+                }
+            });
+            
+            if (response.ok) {
+                const modal = bootstrap.Modal.getInstance(document.getElementById('mealWizardModal'));
+                modal.hide();
+                location.reload(); // Refresh to show updated data
+            } else {
+                alert('Error saving data. Please try again.');
             }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error saving data. Please try again.');
         }
-    });
+    }
+}
+
+// Initialize the wizard when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+    new MealWizard();
 });
 </script>
 {% endblock %}
