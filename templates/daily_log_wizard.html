@@ -106,12 +106,18 @@
 
 <script>
     // Show/hide notes field based on intake_level
-    document.getElementById('intake_level')?.addEventListener('change', function() {
+    document.addEventListener('DOMContentLoaded', function() {
+        const intakeSelect = document.getElementById('intake_level');
         const notesContainer = document.getElementById('notes-container');
-        if (this.value === 'Other') {
-            notesContainer.style.display = 'block';
-        } else {
-            notesContainer.style.display = 'none';
+        
+        if (intakeSelect && notesContainer) {
+            intakeSelect.addEventListener('change', function() {
+                if (this.value === 'Other') {
+                    notesContainer.style.display = 'block';
+                } else {
+                    notesContainer.style.display = 'none';
+                }
+            });
         }
     });
 </script>

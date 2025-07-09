@@ -16,15 +16,6 @@ import json
 from cryptography.fernet import Fernet
 from sqlalchemy import TypeDecorator, Text
 from sqlalchemy.ext.hybrid import hybrid_property
-from models import Resident, FoodIntake, LiquidIntake, BowelMovement, UrineOutput, Vitals
-from your_database import db  # Adjust import based on your database setup
-from datetime import datetime, timedelta
-
-app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key'  # Ensure this is set
-# ... other configurations (e.g., SQLAlchemy, Fla) remain unchanged ...
-
-
 # Initialize Flask app
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///afh.db'
@@ -47,7 +38,9 @@ if not ENCRYPTION_KEY:
     print("Warning: Using generated encryption key. Set ENCRYPTION_KEY in secrets for production.")
 cipher = Fernet(ENCRYPTION_KEY.encode())
 
-db = SQLAlchemy(app)
+from models import db, Resident, FoodIntake, LiquidIntake, BowelMovement, UrineOutput, Vitals, EncryptedText, MedicationCatalog
+
+db.init_app(app)
 mail = Mail(app)
 
 # Ensure upload folder exists
@@ -61,124 +54,12 @@ login_manager.login_view = 'login'
 # CSRF Protection
 csrf = CSRFProtect(app)
 
-# Custom SQLAlchemy type for encrypted fields
-class EncryptedText(TypeDecorator):
-    impl = Text
-    cache_ok = True
-
-    def process_bind_param(self, value, dialect):
-        if value is None:
-            return None
-        return cipher.encrypt(value.encode()).decode()
-
-    def process_result_value(self, value, dialect):
-        if value is None:
-            return None
-        return cipher.decrypt(value.encode()).decode()
-
 # Database Models
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(100), nullable=False)
     role = db.Column(db.String(20), nullable=False)  # 'admin' or 'caregiver'
-
-class Resident(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    _name = db.Column(EncryptedText, nullable=False)
-    _dob = db.Column(EncryptedText, nullable=False)
-    _medical_info = db.Column(EncryptedText)
-    _emergency_contact = db.Column(EncryptedText)
-
-    @property
-    def name(self):
-        return self._name
-
-    @name.setter
-    def name(self, value):
-        self._name = value
-
-    @property
-    def dob(self):
-        if self._dob:
-            try:
-                return datetime.strptime(self._dob, '%Y-%m-%d').date()
-            except (ValueError, TypeError):
-                return None
-        return None
-
-    @dob.setter
-    def dob(self, value):
-        if value:
-            if isinstance(value, str):
-                self._dob = value
-            else:
-                self._dob = value.strftime('%Y-%m-%d')
-        else:
-            self._dob = None
-
-    @property
-    def medical_info(self):
-        return self._medical_info
-
-    @medical_info.setter
-    def medical_info(self, value):
-        self._medical_info = value
-
-    @property
-    def emergency_contact(self):
-        return self._emergency_contact
-
-    @emergency_contact.setter
-    def emergency_contact(self, value):
-        self._emergency_contact = value
-
-class Vitals(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    resident_id = db.Column(db.Integer, db.ForeignKey('resident.id'), nullable=False)
-    date = db.Column(db.Date, nullable=False)
-    meal_type = db.Column(db.String(20), nullable=False)  # 'breakfast'
-    systolic = db.Column(db.Integer, nullable=False)
-    diastolic = db.Column(db.Integer, nullable=False)
-    pulse = db.Column(db.Integer, nullable=False)
-
-class FoodIntake(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    resident_id = db.Column(db.Integer, db.ForeignKey('resident.id'), nullable=False)
-    date = db.Column(db.Date, nullable=False)
-    meal_type = db.Column(db.String(20), nullable=False)  # 'breakfast', 'lunch', 'dinner'
-    intake_level = db.Column(db.String(20), nullable=False)  # '25%', '50%', '75%', '100%', 'Ensure', 'Other'
-    _notes = db.Column(EncryptedText)  # Encrypted notes for 'Other'
-
-    @hybrid_property
-    def notes(self):
-        return self._notes
-
-    @notes.setter
-    def notes(self, value):
-        self._notes = value
-
-class LiquidIntake(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    resident_id = db.Column(db.Integer, db.ForeignKey('resident.id'), nullable=False)
-    date = db.Column(db.Date, nullable=False)
-    meal_type = db.Column(db.String(20), nullable=False)  # 'breakfast', 'lunch', 'dinner'
-    intake = db.Column(db.String(20), nullable=False)  # 'Yes', 'No', 'Partial'
-
-class BowelMovement(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    resident_id = db.Column(db.Integer, db.ForeignKey('resident.id'), nullable=False)
-    date = db.Column(db.Date, nullable=False)
-    meal_type = db.Column(db.String(20), nullable=False)  # 'breakfast', 'lunch', 'dinner'
-    size = db.Column(db.String(20), nullable=False)  # 'Small', 'Medium', 'Large'
-    consistency = db.Column(db.String(20), nullable=False)  # 'Soft', 'Medium', 'Hard'
-
-class UrineOutput(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    resident_id = db.Column(db.Integer, db.ForeignKey('resident.id'), nullable=False)
-    date = db.Column(db.Date, nullable=False)
-    meal_type = db.Column(db.String(20), nullable=False)  # 'breakfast', 'lunch', 'dinner'
-    output = db.Column(db.String(20), nullable=False)  # 'Yes', 'No'
 
 class Medication(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -246,30 +127,7 @@ class AuditLog(db.Model):
     action = db.Column(db.String(100), nullable=False)
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
-class MedicationCatalog(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), unique=True, nullable=False)
-    default_dosage = db.Column(db.String(50))
-    default_frequency = db.Column(db.String(50))
-    _default_notes = db.Column(EncryptedText)
-    form = db.Column(db.String(50))
-    _common_uses = db.Column(EncryptedText)
 
-    @hybrid_property
-    def default_notes(self):
-        return self._default_notes
-
-    @default_notes.setter
-    def default_notes(self, value):
-        self._default_notes = value
-
-    @hybrid_property
-    def common_uses(self):
-        return self._common_uses
-
-    @common_uses.setter
-    def common_uses(self, value):
-        self._common_uses = value
 
 # WTForms for CSRF-protected forms
 class LoginForm(FlaskForm):
@@ -467,13 +325,19 @@ def medication_suggestions():
     query = request.args.get('term', '')
     if not query:
         return jsonify([])
+    
+    # Search by brand name, generic name, or common uses
     suggestions = MedicationCatalog.query.filter(
         (MedicationCatalog.name.ilike(f'%{query}%')) |
-        (MedicationCatalog._common_uses.ilike(f'%{cipher.encrypt(query.encode()).decode()}%'))
-    ).order_by(MedicationCatalog.name).limit(20).all()
+        (MedicationCatalog.brand_name.ilike(f'%{query}%')) |
+        (MedicationCatalog._common_uses.ilike(f'%{query}%'))
+    ).order_by(MedicationCatalog.brand_name, MedicationCatalog.name).limit(20).all()
+    
     return jsonify([{
         'id': med.id,
-        'name': med.name,
+        'name': med.name,  # Generic name
+        'brand_name': med.brand_name or '',  # Brand name
+        'display_name': f"{med.brand_name} ({med.name})" if med.brand_name else med.name,
         'dosage': med.default_dosage or '',
         'frequency': med.default_frequency or '',
         'notes': med.default_notes or '',
@@ -836,6 +700,103 @@ def daily_log_wizard(resident_id):
 
     return render_template('daily_log_wizard.html', resident=resident, form=form, current_step=current_step, current_meal=current_meal, steps=steps, current_step_index=current_step_index)
 
+@app.route('/resident/<int:resident_id>/daily-log-submit', methods=['POST'])
+@login_required
+def daily_log_submit(resident_id):
+    if current_user.role not in ['admin', 'caregiver']:
+        return jsonify({'error': 'Access denied'}), 403
+    
+    resident = Resident.query.get_or_404(resident_id)
+    meal_type = request.form.get('meal_type')
+    form_data = json.loads(request.form.get('form_data', '{}'))
+    today = date.today()
+    
+    try:
+        # Save Vitals (breakfast only)
+        if meal_type == 'breakfast' and form_data.get('systolic') and form_data.get('diastolic') and form_data.get('pulse'):
+            # Delete existing vitals for the day
+            Vitals.query.filter_by(resident_id=resident_id, date=today, meal_type='breakfast').delete()
+            
+            vitals = Vitals(
+                resident_id=resident_id,
+                date=today,
+                meal_type='breakfast',
+                systolic=int(form_data['systolic']),
+                diastolic=int(form_data['diastolic']),
+                pulse=int(form_data['pulse'])
+            )
+            db.session.add(vitals)
+        
+        # Save Food Intake
+        if form_data.get('intake_level'):
+            # Delete existing food intake for the meal
+            FoodIntake.query.filter_by(resident_id=resident_id, date=today, meal_type=meal_type).delete()
+            
+            food = FoodIntake(
+                resident_id=resident_id,
+                date=today,
+                meal_type=meal_type,
+                intake_level=form_data['intake_level'],
+                notes=form_data.get('notes') if form_data.get('intake_level') == 'Other' else None
+            )
+            db.session.add(food)
+        
+        # Save Liquid Intake - Multiple entries
+        # Delete existing liquid intakes for the meal
+        LiquidIntake.query.filter_by(resident_id=resident_id, date=today, meal_type=meal_type).delete()
+        
+        # Save each liquid intake entry
+        for i in range(1, 4):  # Liquid 1, 2, 3
+            liquid_key = f'liquid_{i}'
+            if form_data.get(liquid_key):
+                liquid = LiquidIntake(
+                    resident_id=resident_id,
+                    date=today,
+                    meal_type=meal_type,
+                    intake=f"Liquid {i}: {form_data[liquid_key]}"
+                )
+                db.session.add(liquid)
+        
+        # Save Bowel Movement
+        if form_data.get('size') and form_data.get('consistency'):
+            # Delete existing bowel movement for the meal
+            BowelMovement.query.filter_by(resident_id=resident_id, date=today, meal_type=meal_type).delete()
+            
+            bowel = BowelMovement(
+                resident_id=resident_id,
+                date=today,
+                meal_type=meal_type,
+                size=form_data['size'],
+                consistency=form_data['consistency']
+            )
+            db.session.add(bowel)
+        
+        # Save Urine Output
+        if form_data.get('urine_output'):
+            # Delete existing urine output for the meal
+            UrineOutput.query.filter_by(resident_id=resident_id, date=today, meal_type=meal_type).delete()
+            
+            urine = UrineOutput(
+                resident_id=resident_id,
+                date=today,
+                meal_type=meal_type,
+                output=form_data['urine_output']
+            )
+            db.session.add(urine)
+        
+        db.session.commit()
+        
+        # Audit log
+        audit_log = AuditLog(user_id=current_user.id, action=f"Completed {meal_type} log for {resident.name}")
+        db.session.add(audit_log)
+        db.session.commit()
+        
+        return jsonify({'success': True})
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/resident/<int:resident_id>/logs', methods=['GET', 'POST'])
 @login_required
 def daily_logs(resident_id):
@@ -847,6 +808,7 @@ def daily_logs(resident_id):
     liquid_intakes = LiquidIntake.query.filter_by(resident_id=resident_id, date=log_date).all()
     bowel_movements = BowelMovement.query.filter_by(resident_id=resident_id, date=log_date).all()
     urine_outputs = UrineOutput.query.filter_by(resident_id=resident_id, date=log_date).all()
+    vitals = Vitals.query.filter_by(resident_id=resident_id, date=log_date, meal_type='breakfast').first()
 
     missing_logs = []
     meal_types = ['breakfast', 'lunch', 'dinner']
@@ -937,7 +899,7 @@ def daily_logs(resident_id):
     return render_template('daily_logs.html', resident=resident, log_date=log_date,
                           food_intakes=food_intakes, liquid_intakes=liquid_intakes,
                           bowel_movements=bowel_movements, urine_outputs=urine_outputs,
-                          missing_logs=missing_logs, prev_date=prev_date, next_date=next_date,
+                          vitals=vitals, missing_logs=missing_logs, prev_date=prev_date, next_date=next_date,
                           food_form=food_form, liquid_form=liquid_form, bowel_form=bowel_form, urine_form=urine_form)
 
 @app.route('/resident/<int:resident_id>/medications', methods=['GET', 'POST'])
@@ -1213,11 +1175,58 @@ if __name__ == '__main__':
             db.session.add(resident)
             db.session.commit()
         sample_medications = [
-            {'name': 'Lisinopril', 'default_dosage': '10 mg', 'default_frequency': 'Daily', 'default_notes': 'Take with water', 'form': 'tablet', 'common_uses': 'hypertension, heart failure'},
-            {'name': 'Metformin', 'default_dosage': '500 mg', 'default_frequency': 'Twice daily', 'default_notes': 'Take with meals', 'form': 'tablet', 'common_uses': 'type 2 diabetes'},
-            {'name': 'Ibuprofen', 'default_dosage': '200 mg', 'default_frequency': 'As needed', 'default_notes': 'Do not exceed 3200 mg daily', 'form': 'tablet', 'common_uses': 'pain, inflammation'},
-            {'name': 'Amlodipine', 'default_dosage': '5 mg', 'default_frequency': 'Daily', 'default_notes': 'Monitor blood pressure', 'form': 'tablet', 'common_uses': 'hypertension, angina'},
-            {'name': 'Atorvastatin', 'default_dosage': '20 mg', 'default_frequency': 'Daily', 'default_notes': 'Take at night', 'form': 'tablet', 'common_uses': 'high cholesterol'}
+            {'name': 'Lisinopril', 'brand_name': 'Prinivil', 'default_dosage': '10 mg', 'default_frequency': 'Daily', 'default_notes': 'Take with water', 'form': 'tablet', 'common_uses': 'hypertension, heart failure'},
+            {'name': 'Metformin', 'brand_name': 'Glucophage', 'default_dosage': '500 mg', 'default_frequency': 'Twice daily', 'default_notes': 'Take with meals', 'form': 'tablet', 'common_uses': 'type 2 diabetes'},
+            {'name': 'Ibuprofen', 'brand_name': 'Advil', 'default_dosage': '200 mg', 'default_frequency': 'As needed', 'default_notes': 'Do not exceed 3200 mg daily', 'form': 'tablet', 'common_uses': 'pain, inflammation'},
+            {'name': 'Amlodipine', 'brand_name': 'Norvasc', 'default_dosage': '5 mg', 'default_frequency': 'Daily', 'default_notes': 'Monitor blood pressure', 'form': 'tablet', 'common_uses': 'hypertension, angina'},
+            {'name': 'Atorvastatin', 'brand_name': 'Lipitor', 'default_dosage': '20 mg', 'default_frequency': 'Daily', 'default_notes': 'Take at night', 'form': 'tablet', 'common_uses': 'high cholesterol'},
+            {'name': 'Acetaminophen', 'brand_name': 'Tylenol', 'default_dosage': '500 mg', 'default_frequency': 'As needed', 'default_notes': 'Do not exceed 3000 mg daily', 'form': 'tablet', 'common_uses': 'pain, fever'},
+            {'name': 'Cetirizine', 'brand_name': 'Zyrtec', 'default_dosage': '10 mg', 'default_frequency': 'Daily', 'default_notes': 'May cause drowsiness', 'form': 'tablet', 'common_uses': 'allergies, hay fever'},
+            {'name': 'Omeprazole', 'brand_name': 'Prilosec', 'default_dosage': '20 mg', 'default_frequency': 'Daily', 'default_notes': 'Take before meals', 'form': 'capsule', 'common_uses': 'acid reflux, heartburn'},
+            {'name': 'Aspirin', 'brand_name': 'Bayer', 'default_dosage': '81 mg', 'default_frequency': 'Daily', 'default_notes': 'Take with food', 'form': 'tablet', 'common_uses': 'heart attack prevention, pain'},
+            {'name': 'Warfarin', 'brand_name': 'Coumadin', 'default_dosage': '5 mg', 'default_frequency': 'Daily', 'default_notes': 'Monitor INR regularly', 'form': 'tablet', 'common_uses': 'blood clot prevention'},
+            {'name': 'Furosemide', 'brand_name': 'Lasix', 'default_dosage': '20 mg', 'default_frequency': 'Daily', 'default_notes': 'Monitor potassium levels', 'form': 'tablet', 'common_uses': 'fluid retention, high blood pressure'},
+            {'name': 'Insulin', 'brand_name': 'Humalog', 'default_dosage': '10 units', 'default_frequency': 'As directed', 'default_notes': 'Inject subcutaneously', 'form': 'injection', 'common_uses': 'diabetes'},
+            {'name': 'Hydrochlorothiazide', 'brand_name': 'Microzide', 'default_dosage': '25 mg', 'default_frequency': 'Daily', 'default_notes': 'Take in morning', 'form': 'tablet', 'common_uses': 'high blood pressure'},
+            {'name': 'Prednisone', 'brand_name': 'Deltasone', 'default_dosage': '10 mg', 'default_frequency': 'Daily', 'default_notes': 'Take with food', 'form': 'tablet', 'common_uses': 'inflammation, autoimmune conditions'},
+            {'name': 'Gabapentin', 'brand_name': 'Neurontin', 'default_dosage': '300 mg', 'default_frequency': 'Three times daily', 'default_notes': 'May cause dizziness', 'form': 'capsule', 'common_uses': 'nerve pain, seizures'},
+            {'name': 'Losartan', 'brand_name': 'Cozaar', 'default_dosage': '50 mg', 'default_frequency': 'Daily', 'default_notes': 'Monitor blood pressure', 'form': 'tablet', 'common_uses': 'high blood pressure'},
+            {'name': 'Sertraline', 'brand_name': 'Zoloft', 'default_dosage': '50 mg', 'default_frequency': 'Daily', 'default_notes': 'Take with food', 'form': 'tablet', 'common_uses': 'depression, anxiety'},
+            {'name': 'Digoxin', 'brand_name': 'Lanoxin', 'default_dosage': '0.25 mg', 'default_frequency': 'Daily', 'default_notes': 'Monitor heart rate', 'form': 'tablet', 'common_uses': 'heart failure, atrial fibrillation'},
+            {'name': 'Donepezil', 'brand_name': 'Aricept', 'default_dosage': '5 mg', 'default_frequency': 'Daily', 'default_notes': 'Take at bedtime', 'form': 'tablet', 'common_uses': 'Alzheimer\'s disease'},
+            {'name': 'Levothyroxine', 'brand_name': 'Synthroid', 'default_dosage': '50 mcg', 'default_frequency': 'Daily', 'default_notes': 'Take on empty stomach', 'form': 'tablet', 'common_uses': 'hypothyroidism'},
+            {'name': 'Clopidogrel', 'brand_name': 'Plavix', 'default_dosage': '75 mg', 'default_frequency': 'Daily', 'default_notes': 'Take with food', 'form': 'tablet', 'common_uses': 'blood clot prevention'},
+            {'name': 'Pantoprazole', 'brand_name': 'Protonix', 'default_dosage': '40 mg', 'default_frequency': 'Daily', 'default_notes': 'Take before meals', 'form': 'tablet', 'common_uses': 'acid reflux, stomach ulcers'},
+            {'name': 'Tramadol', 'brand_name': 'Ultram', 'default_dosage': '50 mg', 'default_frequency': 'As needed', 'default_notes': 'May cause dizziness', 'form': 'tablet', 'common_uses': 'moderate pain'},
+            {'name': 'Morphine', 'brand_name': 'MS Contin', 'default_dosage': '15 mg', 'default_frequency': 'As needed', 'default_notes': 'Controlled substance', 'form': 'tablet', 'common_uses': 'severe pain'},
+            {'name': 'Oxycodone', 'brand_name': 'OxyContin', 'default_dosage': '10 mg', 'default_frequency': 'As needed', 'default_notes': 'Controlled substance', 'form': 'tablet', 'common_uses': 'severe pain'},
+            {'name': 'Lorazepam', 'brand_name': 'Ativan', 'default_dosage': '0.5 mg', 'default_frequency': 'As needed', 'default_notes': 'Controlled substance', 'form': 'tablet', 'common_uses': 'anxiety, insomnia'},
+            {'name': 'Diphenhydramine', 'brand_name': 'Benadryl', 'default_dosage': '25 mg', 'default_frequency': 'As needed', 'default_notes': 'May cause drowsiness', 'form': 'tablet', 'common_uses': 'allergies, sleep aid'},
+            {'name': 'Potassium Chloride', 'brand_name': 'Klor-Con', 'default_dosage': '20 mEq', 'default_frequency': 'Daily', 'default_notes': 'Take with food', 'form': 'tablet', 'common_uses': 'potassium deficiency'},
+            {'name': 'Carvedilol', 'brand_name': 'Coreg', 'default_dosage': '3.125 mg', 'default_frequency': 'Twice daily', 'default_notes': 'Take with food', 'form': 'tablet', 'common_uses': 'heart failure, high blood pressure'},
+            {'name': 'Montelukast', 'brand_name': 'Singulair', 'default_dosage': '10 mg', 'default_frequency': 'Daily', 'default_notes': 'Take in evening', 'form': 'tablet', 'common_uses': 'asthma, allergies'},
+            {'name': 'Fluticasone', 'brand_name': 'Flonase', 'default_dosage': '50 mcg', 'default_frequency': 'Daily', 'default_notes': 'Prime before first use', 'form': 'nasal spray', 'common_uses': 'allergic rhinitis'},
+            {'name': 'Albuterol', 'brand_name': 'ProAir', 'default_dosage': '90 mcg', 'default_frequency': 'As needed', 'default_notes': 'Shake before use', 'form': 'inhaler', 'common_uses': 'asthma, COPD'},
+            {'name': 'Metoprolol', 'brand_name': 'Lopressor', 'default_dosage': '50 mg', 'default_frequency': 'Twice daily', 'default_notes': 'Take with meals', 'form': 'tablet', 'common_uses': 'high blood pressure, heart failure'},
+            {'name': 'Esomeprazole', 'brand_name': 'Nexium', 'default_dosage': '20 mg', 'default_frequency': 'Daily', 'default_notes': 'Take before meals', 'form': 'capsule', 'common_uses': 'acid reflux, stomach ulcers'},
+            {'name': 'Rosuvastatin', 'brand_name': 'Crestor', 'default_dosage': '10 mg', 'default_frequency': 'Daily', 'default_notes': 'Take at night', 'form': 'tablet', 'common_uses': 'high cholesterol'},
+            {'name': 'Duloxetine', 'brand_name': 'Cymbalta', 'default_dosage': '30 mg', 'default_frequency': 'Daily', 'default_notes': 'Take with food', 'form': 'capsule', 'common_uses': 'depression, anxiety, nerve pain'},
+            {'name': 'Memantine', 'brand_name': 'Namenda', 'default_dosage': '5 mg', 'default_frequency': 'Daily', 'default_notes': 'May cause dizziness', 'form': 'tablet', 'common_uses': 'Alzheimer\'s disease'},
+            {'name': 'Rivaroxaban', 'brand_name': 'Xarelto', 'default_dosage': '20 mg', 'default_frequency': 'Daily', 'default_notes': 'Take with food', 'form': 'tablet', 'common_uses': 'blood clot prevention'},
+            {'name': 'Spironolactone', 'brand_name': 'Aldactone', 'default_dosage': '25 mg', 'default_frequency': 'Daily', 'default_notes': 'Monitor potassium', 'form': 'tablet', 'common_uses': 'heart failure, high blood pressure'},
+            {'name': 'Trazodone', 'brand_name': 'Desyrel', 'default_dosage': '50 mg', 'default_frequency': 'At bedtime', 'default_notes': 'Take with food', 'form': 'tablet', 'common_uses': 'depression, insomnia'},
+            {'name': 'Quetiapine', 'brand_name': 'Seroquel', 'default_dosage': '25 mg', 'default_frequency': 'Daily', 'default_notes': 'May cause drowsiness', 'form': 'tablet', 'common_uses': 'schizophrenia, bipolar disorder'},
+            {'name': 'Simvastatin', 'brand_name': 'Zocor', 'default_dosage': '20 mg', 'default_frequency': 'Daily', 'default_notes': 'Take in evening', 'form': 'tablet', 'common_uses': 'high cholesterol'},
+            {'name': 'Ramipril', 'brand_name': 'Altace', 'default_dosage': '5 mg', 'default_frequency': 'Daily', 'default_notes': 'Take with water', 'form': 'capsule', 'common_uses': 'high blood pressure, heart failure'},
+            {'name': 'Calcium Carbonate', 'brand_name': 'Tums', 'default_dosage': '500 mg', 'default_frequency': 'As needed', 'default_notes': 'Take with food', 'form': 'tablet', 'common_uses': 'heartburn, calcium supplement'},
+            {'name': 'Docusate', 'brand_name': 'Colace', 'default_dosage': '100 mg', 'default_frequency': 'Daily', 'default_notes': 'Take with water', 'form': 'capsule', 'common_uses': 'constipation'},
+            {'name': 'Senna', 'brand_name': 'Senokot', 'default_dosage': '8.6 mg', 'default_frequency': 'Daily', 'default_notes': 'Take at bedtime', 'form': 'tablet', 'common_uses': 'constipation'},
+            {'name': 'Multivitamin', 'brand_name': 'Centrum', 'default_dosage': '1 tablet', 'default_frequency': 'Daily', 'default_notes': 'Take with food', 'form': 'tablet', 'common_uses': 'vitamin supplement'},
+            {'name': 'Vitamin D3', 'brand_name': 'Cholecalciferol', 'default_dosage': '1000 IU', 'default_frequency': 'Daily', 'default_notes': 'Take with fat', 'form': 'tablet', 'common_uses': 'vitamin D deficiency'},
+            {'name': 'Vitamin B12', 'brand_name': 'Cyanocobalamin', 'default_dosage': '500 mcg', 'default_frequency': 'Daily', 'default_notes': 'Take sublingually', 'form': 'tablet', 'common_uses': 'vitamin B12 deficiency'},
+            {'name': 'Folic Acid', 'brand_name': 'Folate', 'default_dosage': '1 mg', 'default_frequency': 'Daily', 'default_notes': 'Take with water', 'form': 'tablet', 'common_uses': 'folate deficiency, anemia'},
+            {'name': 'Iron Sulfate', 'brand_name': 'Feosol', 'default_dosage': '325 mg', 'default_frequency': 'Daily', 'default_notes': 'Take on empty stomach', 'form': 'tablet', 'common_uses': 'iron deficiency anemia'},
+            {'name': 'Nitroglycerin', 'brand_name': 'Nitrostat', 'default_dosage': '0.4 mg', 'default_frequency': 'As needed', 'default_notes': 'Sublingual use only', 'form': 'tablet', 'common_uses': 'chest pain, angina'}
         ]
         for med in sample_medications:
             if not MedicationCatalog.query.filter_by(name=med['name']).first():

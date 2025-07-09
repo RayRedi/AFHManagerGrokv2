@@ -55,25 +55,49 @@ body {
 
 .dropdown {
     position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     z-index: 1000;
-    background: #fff;
-    border: 1px solid #6b48ff;
-    border-radius: 8px;
-    max-height: 200px;
+    max-height: 300px;
     overflow-y: auto;
-    width: calc(100% - 2rem);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    display: none;
 }
 
 .dropdown-item {
-    padding: 8px 16px;
+    padding: 12px;
     cursor: pointer;
-    font-size: 16px;
+    border-bottom: 1px solid #eee;
+    transition: background-color 0.2s;
 }
 
 .dropdown-item:hover, .dropdown-item.selected {
-    background: #6b48ff;
-    color: #fff;
+    background-color: #f8f9fa;
+}
+
+.dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.medication-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.medication-name {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 2px;
+}
+
+.medication-uses {
+    font-size: 0.85em;
+    color: #666;
+    font-style: italic;
 }
 
 .alert {
@@ -207,31 +231,229 @@ body {
 }
 
 /* Mobile responsiveness for accordions */
+/* Meal Cards */
+.meal-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: 2px solid transparent;
+}
+
+.meal-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    border-color: #6b48ff;
+}
+
+.meal-icon {
+    transition: transform 0.3s ease;
+}
+
+.meal-card:hover .meal-icon {
+    transform: scale(1.1);
+}
+
+.meal-progress .progress {
+    background-color: #e9ecef;
+    border-radius: 10px;
+    height: 20px;
+}
+
+.meal-progress .progress-bar {
+    background: linear-gradient(90deg, #28a745, #20c997);
+    border-radius: 10px;
+    transition: width 0.3s ease;
+}
+
+.step-indicators .badge {
+    font-size: 10px;
+    padding: 4px 8px;
+    margin-bottom: 2px;
+    transition: all 0.2s ease;
+}
+
+.step-indicators .badge.bg-success {
+    background-color: #28a745 !important;
+    box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+}
+
+.step-indicators .badge.bg-secondary {
+    background-color: #6c757d !important;
+    opacity: 0.7;
+}
+
+/* Wizard Modal */
+.modal-lg {
+    max-width: 800px;
+}
+
+#wizardProgress {
+    background-color: #f8f9fa;
+    border-radius: 15px;
+    height: 30px;
+    overflow: hidden;
+}
+
+#wizardProgress .progress-bar {
+    background: linear-gradient(90deg, #6b48ff, #0052cc);
+    border-radius: 15px;
+    transition: width 0.4s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+}
+
+#progressText {
+    font-size: 14px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+#stepContent {
+    min-height: 300px;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 12px;
+    margin-bottom: 20px;
+}
+
+#stepContent h4 {
+    color: #6b48ff;
+    margin-bottom: 20px;
+    font-weight: 600;
+}
+
+#stepContent .form-control,
+#stepContent .form-select {
+    border-radius: 8px;
+    border: 2px solid #e9ecef;
+    padding: 12px;
+    font-size: 16px;
+    transition: border-color 0.3s ease;
+}
+
+#stepContent .form-control:focus,
+#stepContent .form-select:focus {
+    border-color: #6b48ff;
+    box-shadow: 0 0 0 0.2rem rgba(107, 72, 255, 0.25);
+}
+
+#stepContent .form-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 8px;
+}
+
+/* Navigation Buttons */
+.modal-body .btn {
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.modal-body .btn-primary {
+    background: linear-gradient(90deg, #6b48ff, #0052cc);
+    border: none;
+}
+
+.modal-body .btn-success {
+    background: linear-gradient(90deg, #28a745, #20c997);
+    border: none;
+}
+
+.modal-body .btn-outline-secondary {
+    border: 2px solid #6c757d;
+    color: #6c757d;
+}
+
+.modal-body .btn-outline-primary {
+    border: 2px solid #6b48ff;
+    color: #6b48ff;
+}
+
+.modal-body .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .meal-card {
+        margin-bottom: 15px;
+    }
+
+    .meal-icon {
+        font-size: 2rem !important;
+    }
+
+    .step-indicators .badge {
+        font-size: 9px;
+        padding: 3px 6px;
+    }
+
+    #stepContent {
+        min-height: 250px;
+        padding: 15px;
+    }
+
+    #stepContent .form-control,
+    #stepContent .form-select {
+        font-size: 14px;
+        padding: 10px;
+    }
+
+    .modal-body .btn {
+        padding: 8px 16px;
+        font-size: 14px;
+    }
+}
+
 @media (max-width: 576px) {
     .accordion-button {
         font-size: 14px;
         padding: 12px;
     }
-    
+
     .accordion-button .badge {
         font-size: 10px;
         padding: 2px 6px;
     }
-    
+
     .card-title {
         font-size: 1.1rem;
     }
-    
+
     .display-5 {
         font-size: 1.6rem;
     }
-    
+
     .btn-group {
         flex-direction: column;
         width: 100%;
     }
-    
+
     .btn-group .btn {
         margin-bottom: 5px;
+    }
+
+    .meal-card .card-body {
+        padding: 15px;
+    }
+
+    .meal-card h3 {
+        font-size: 1.3rem;
+    }
+
+    .modal-dialog {
+        margin: 10px;
+    }
+
+    #wizardProgress {
+        height: 25px;
+    }
+
+    #progressText {
+        font-size: 12px;
     }
 }
