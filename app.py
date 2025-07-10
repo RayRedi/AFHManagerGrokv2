@@ -37,12 +37,11 @@ def init_medications():
     conn.close()
 
 
-
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', os.urandom(24))
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///afh.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
 app.config['UPLOAD_FOLDER'] = 'documents'
-app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB file size limit
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB file size limit
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
@@ -50,6 +49,16 @@ app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'your-email@gmail.
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', 'your-app-password')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_USERNAME', 'your-email@gmail.com')
 
+# Initialize extensions
+db = SQLAlchemy(app)
+csrf = CSRFProtect(app)
+mail = Mail(app)
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'  # Adjust to your login route
+
+# Encryption setup
+ENCRYPTION_KEY = os.environ.get('ENCRYPTION_KEY', Fernet.generate_key().decode())
+cipher = Fernet(ENCRYPTION_KEY.encode())
 
 # Initialize encryption
 ENCRYPTION_KEY = os.environ.get('ENCRYPTION_KEY')
@@ -58,6 +67,53 @@ if not ENCRYPTION_KEY:
     ENCRYPTION_KEY = Fernet.generate_key().decode()
     print("Warning: Using generated encryption key. Set ENCRYPTION_KEY in secrets for production.")
 cipher = Fernet(ENCRYPTION_KEY.encode())
+
+# === Place the Resident Model with Encryption Here ===
+class EncryptedString(TypeDecorator):
+    impl = Text
+
+    def process_bind_param(self, value, dialect):
+        if value is not None:
+            return cipher.encrypt(value.encode()).decode()
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value is not None:
+            return cipher.decrypt(value.encode()).decode()
+        return value
+
+class Resident(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(EncryptedString, nullable=False)
+    # Add other fields as needed, e.g.:
+    # date_of_birth = db.Column(db.Date)
+    # medical_notes = db.Column(EncryptedString)
+    # medications = db.relationship('Medication', backref='resident', cascade='all, delete-orphan')
+
+# === Other Forms and Routes Follow ===
+class DeleteResidentForm(FlaskForm):
+    submit = SubmitField('Delete')
+
+# Example delete route
+@app.route('/residents/delete/<int:resident_id>', methods=['GET', 'POST'])
+@login_required
+def delete_resident(resident_id):
+    resident = Resident.query.get_or_404(resident_id)
+    form = DeleteResidentForm()
+
+    if form.validate_on_submit():
+        db.session.delete(resident)
+        db.session.commit()
+        flash('Resident deleted successfully.', 'success')
+        return redirect(url_for('residents_list'))  # Adjust to your residents list route
+
+    return render_template('delete_resident.html', resident=resident, form=form)
+
+# Initialize database
+with app.app_context():
+    db.create_all()
+
+# Other routes and logic...
 
 from models import db, Resident, FoodIntake, LiquidIntake, BowelMovement, UrineOutput, Vitals, EncryptedText
 
