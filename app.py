@@ -49,17 +49,6 @@ app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'your-email@gmail.
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', 'your-app-password')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_USERNAME', 'your-email@gmail.com')
 
-# Initialize extensions
-db = SQLAlchemy(app)
-csrf = CSRFProtect(app)
-mail = Mail(app)
-login_manager = LoginManager(app)
-login_manager.login_view = 'login'  # Adjust to your login route
-
-# Encryption setup
-ENCRYPTION_KEY = os.environ.get('ENCRYPTION_KEY', Fernet.generate_key().decode())
-cipher = Fernet(ENCRYPTION_KEY.encode())
-
 # Initialize encryption
 ENCRYPTION_KEY = os.environ.get('ENCRYPTION_KEY')
 if not ENCRYPTION_KEY:
@@ -68,68 +57,18 @@ if not ENCRYPTION_KEY:
     print("Warning: Using generated encryption key. Set ENCRYPTION_KEY in secrets for production.")
 cipher = Fernet(ENCRYPTION_KEY.encode())
 
-# === Place the Resident Model with Encryption Here ===
-class EncryptedString(TypeDecorator):
-    impl = Text
-
-    def process_bind_param(self, value, dialect):
-        if value is not None:
-            return cipher.encrypt(value.encode()).decode()
-        return value
-
-    def process_result_value(self, value, dialect):
-        if value is not None:
-            return cipher.decrypt(value.encode()).decode()
-        return value
-
-class Resident(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(EncryptedString, nullable=False)
-    # Add other fields as needed, e.g.:
-    # date_of_birth = db.Column(db.Date)
-    # medical_notes = db.Column(EncryptedString)
-    # medications = db.relationship('Medication', backref='resident', cascade='all, delete-orphan')
-
-# === Other Forms and Routes Follow ===
-class DeleteResidentForm(FlaskForm):
-    submit = SubmitField('Delete')
-
-# Example delete route
-@app.route('/residents/delete/<int:resident_id>', methods=['GET', 'POST'])
-@login_required
-def delete_resident(resident_id):
-    resident = Resident.query.get_or_404(resident_id)
-    form = DeleteResidentForm()
-
-    if form.validate_on_submit():
-        db.session.delete(resident)
-        db.session.commit()
-        flash('Resident deleted successfully.', 'success')
-        return redirect(url_for('residents_list'))  # Adjust to your residents list route
-
-    return render_template('delete_resident.html', resident=resident, form=form)
-
-# Initialize database
-with app.app_context():
-    db.create_all()
-
-# Other routes and logic...
-
+# Import models and initialize database
 from models import db, Resident, FoodIntake, LiquidIntake, BowelMovement, UrineOutput, Vitals, EncryptedText
-
 db.init_app(app)
+
+# Initialize other extensions
+csrf = CSRFProtect(app)
 mail = Mail(app)
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
 
 # Ensure upload folder exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-
-# Set up Flask-Login
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'login'
-
-# CSRF Protection
-csrf = CSRFProtect(app)
 
 # Database Models
 class User(db.Model, UserMixin):
@@ -137,6 +76,9 @@ class User(db.Model, UserMixin):
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(100), nullable=False)
     role = db.Column(db.String(20), nullable=False)  # 'admin' or 'caregiver'
+
+class DeleteResidentForm(FlaskForm):
+    submit = SubmitField('Delete')
 
 class Medication(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -325,6 +267,9 @@ def validate_password(password):
     if not re.search(r'[0-9]', password):
         return False, "Password must contain at least one number"
     return True, ""
+    
+class DeleteResidentForm(FlaskForm):
+    submit = SubmitField('Delete')
 
 # Send email notification
 def send_alert_email(subject, body):
@@ -600,59 +545,60 @@ def edit_resident(resident_id):
     form.emergency_contact.data = resident.emergency_contact
     return render_template('add_resident.html', title='Edit Resident', form=form, resident=resident)
 
-@app.route('/resident/<int:resident_id>/delete', methods=['POST'])
+@app.route('/resident/<int:resident_id>/delete', methods=['GET', 'POST'])
 @login_required
 def delete_resident(resident_id):
     if current_user.role != 'admin':
-        flash('Access denied')
+        flash('Access denied', 'error')
         return redirect(url_for('home'))
-    
+
     resident = Resident.query.get_or_404(resident_id)
-    name = resident.name
-    
-    try:
-        # Delete related records first to avoid foreign key constraints
-        # Delete medication logs
-        medication_logs = MedicationLog.query.filter_by(resident_id=resident_id).all()
-        for log in medication_logs:
-            db.session.delete(log)
-        
-        # Delete medications
-        medications = Medication.query.filter_by(resident_id=resident_id).all()
-        for med in medications:
-            db.session.delete(med)
-        
-        # Delete documents and their files
-        documents = Document.query.filter_by(resident_id=resident_id).all()
-        for doc in documents:
-            try:
-                os.remove(os.path.join(app.config['UPLOAD_FOLDER'], doc.filename))
-            except OSError:
-                pass  # File might not exist
-            db.session.delete(doc)
-        
-        # Delete daily logs
-        FoodIntake.query.filter_by(resident_id=resident_id).delete()
-        LiquidIntake.query.filter_by(resident_id=resident_id).delete()
-        BowelMovement.query.filter_by(resident_id=resident_id).delete()
-        UrineOutput.query.filter_by(resident_id=resident_id).delete()
-        Vitals.query.filter_by(resident_id=resident_id).delete()
-        
-        # Finally delete the resident
-        db.session.delete(resident)
-        db.session.commit()
-        
-        # Add audit log
-        audit_log = AuditLog(user_id=current_user.id, action=f"Deleted resident {name}")
-        db.session.add(audit_log)
-        db.session.commit()
-        
-        flash('Resident deleted successfully.')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Error deleting resident: {str(e)}')
-    
-    return redirect(url_for('home'))
+    form = DeleteResidentForm()
+
+    if form.validate_on_submit() or request.is_xhr:  # Handle form or AJAX
+        name = resident.name
+        try:
+            medication_logs = MedicationLog.query.filter_by(resident_id=resident_id).all()
+            for log in medication_logs:
+                db.session.delete(log)
+
+            medications = Medication.query.filter_by(resident_id=resident_id).all()
+            for med in medications:
+                db.session.delete(med)
+
+            documents = Document.query.filter_by(resident_id=resident_id).all()
+            for doc in documents:
+                try:
+                    os.remove(os.path.join(app.config['UPLOAD_FOLDER'], doc.filename))
+                except OSError:
+                    pass
+                db.session.delete(doc)
+
+            FoodIntake.query.filter_by(resident_id=resident_id).delete()
+            LiquidIntake.query.filter_by(resident_id=resident_id).delete()
+            BowelMovement.query.filter_by(resident_id=resident_id).delete()
+            UrineOutput.query.filter_by(resident_id=resident_id).delete()
+            Vitals.query.filter_by(resident_id=resident_id).delete()
+
+            db.session.delete(resident)
+            db.session.commit()
+
+            audit_log = AuditLog(user_id=current_user.id, action=f"Deleted resident {name}")
+            db.session.add(audit_log)
+            db.session.commit()
+
+            if request.is_xhr:
+                return jsonify({'success': True, 'message': 'Resident deleted'})
+            flash('Resident deleted successfully.', 'success')
+            return redirect(url_for('home'))
+        except Exception as e:
+            db.session.rollback()
+            if request.is_xhr:
+                return jsonify({'success': False, 'message': f'Error deleting resident: {str(e)}'}), 500
+            flash(f'Error deleting resident: {str(e)}', 'error')
+            return redirect(url_for('home'))
+
+    return render_template('delete_resident.html', resident=resident, form=form)
 
 @app.route('/resident/<int:resident_id>')
 @login_required
