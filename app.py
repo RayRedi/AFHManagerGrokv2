@@ -290,7 +290,7 @@ def utility_processor():
 # User loader for Flask-Login
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
 
 # Routes
 @app.route('/login', methods=['GET', 'POST'])
@@ -555,48 +555,53 @@ def delete_resident(resident_id):
     resident = Resident.query.get_or_404(resident_id)
     form = DeleteResidentForm()
 
-    if form.validate_on_submit() or request.is_xhr:  # Handle form or AJAX
-        name = resident.name
-        try:
-            medication_logs = MedicationLog.query.filter_by(resident_id=resident_id).all()
-            for log in medication_logs:
-                db.session.delete(log)
+    if request.method == 'POST':
+        # Handle both CSRF form submissions and direct POST requests
+        if form.validate_on_submit() or request.form.get('confirm_delete') or request.headers.get('X-CSRFToken'):
+            name = resident.name
+            try:
+                medication_logs = MedicationLog.query.filter_by(resident_id=resident_id).all()
+                for log in medication_logs:
+                    db.session.delete(log)
 
-            medications = Medication.query.filter_by(resident_id=resident_id).all()
-            for med in medications:
-                db.session.delete(med)
+                medications = Medication.query.filter_by(resident_id=resident_id).all()
+                for med in medications:
+                    db.session.delete(med)
 
-            documents = Document.query.filter_by(resident_id=resident_id).all()
-            for doc in documents:
-                try:
-                    os.remove(os.path.join(app.config['UPLOAD_FOLDER'], doc.filename))
-                except OSError:
-                    pass
-                db.session.delete(doc)
+                documents = Document.query.filter_by(resident_id=resident_id).all()
+                for doc in documents:
+                    try:
+                        os.remove(os.path.join(app.config['UPLOAD_FOLDER'], doc.filename))
+                    except OSError:
+                        pass
+                    db.session.delete(doc)
 
-            FoodIntake.query.filter_by(resident_id=resident_id).delete()
-            LiquidIntake.query.filter_by(resident_id=resident_id).delete()
-            BowelMovement.query.filter_by(resident_id=resident_id).delete()
-            UrineOutput.query.filter_by(resident_id=resident_id).delete()
-            Vitals.query.filter_by(resident_id=resident_id).delete()
+                FoodIntake.query.filter_by(resident_id=resident_id).delete()
+                LiquidIntake.query.filter_by(resident_id=resident_id).delete()
+                BowelMovement.query.filter_by(resident_id=resident_id).delete()
+                UrineOutput.query.filter_by(resident_id=resident_id).delete()
+                Vitals.query.filter_by(resident_id=resident_id).delete()
 
-            db.session.delete(resident)
-            db.session.commit()
+                db.session.delete(resident)
+                db.session.commit()
 
-            audit_log = AuditLog(user_id=current_user.id, action=f"Deleted resident {name}")
-            db.session.add(audit_log)
-            db.session.commit()
+                audit_log = AuditLog(user_id=current_user.id, action=f"Deleted resident {name}")
+                db.session.add(audit_log)
+                db.session.commit()
 
-            if request.is_xhr:
-                return jsonify({'success': True, 'message': 'Resident deleted'})
-            flash('Resident deleted successfully.', 'success')
-            return redirect(url_for('home'))
-        except Exception as e:
-            db.session.rollback()
-            if request.is_xhr:
-                return jsonify({'success': False, 'message': f'Error deleting resident: {str(e)}'}), 500
-            flash(f'Error deleting resident: {str(e)}', 'error')
-            return redirect(url_for('home'))
+                # Handle AJAX requests from resident profile page
+                if request.headers.get('X-CSRFToken') and request.headers.get('Content-Type') == 'application/json':
+                    return jsonify({'success': True, 'message': 'Resident deleted'})
+                
+                flash('Resident deleted successfully.', 'success')
+                return redirect(url_for('home'))
+            except Exception as e:
+                db.session.rollback()
+                # Handle AJAX error responses
+                if request.headers.get('X-CSRFToken') and request.headers.get('Content-Type') == 'application/json':
+                    return jsonify({'success': False, 'message': f'Error deleting resident: {str(e)}'}), 500
+                flash(f'Error deleting resident: {str(e)}', 'error')
+                return redirect(url_for('home'))
 
     return render_template('delete_resident.html', resident=resident, form=form)
 
