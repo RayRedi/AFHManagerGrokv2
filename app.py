@@ -556,8 +556,9 @@ def delete_resident(resident_id):
     form = DeleteResidentForm()
 
     if request.method == 'POST':
-        # Handle both CSRF form submissions and direct POST requests
-        if form.validate_on_submit() or request.form.get('confirm_delete') or request.headers.get('X-CSRFToken'):
+        # Handle CSRF token validation - accept if token is present
+        csrf_token = request.headers.get('X-CSRFToken') or request.form.get('csrf_token')
+        if csrf_token or form.validate_on_submit():
             name = resident.name
             try:
                 medication_logs = MedicationLog.query.filter_by(resident_id=resident_id).all()
@@ -602,6 +603,9 @@ def delete_resident(resident_id):
                     return jsonify({'success': False, 'message': f'Error deleting resident: {str(e)}'}), 500
                 flash(f'Error deleting resident: {str(e)}', 'error')
                 return redirect(url_for('home'))
+        else:
+            flash('Invalid request', 'error')
+            return redirect(url_for('home'))
 
     return render_template('delete_resident.html', resident=resident, form=form)
 
