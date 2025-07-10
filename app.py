@@ -550,14 +550,52 @@ def delete_resident(resident_id):
     if current_user.role != 'admin':
         flash('Access denied')
         return redirect(url_for('home'))
+    
     resident = Resident.query.get_or_404(resident_id)
     name = resident.name
-    db.session.delete(resident)
-    db.session.commit()
-    audit_log = AuditLog(user_id=current_user.id, action=f"Deleted resident {name}")
-    db.session.add(audit_log)
-    db.session.commit()
-    flash('Resident deleted successfully.')
+    
+    try:
+        # Delete related records first to avoid foreign key constraints
+        # Delete medication logs
+        medication_logs = MedicationLog.query.filter_by(resident_id=resident_id).all()
+        for log in medication_logs:
+            db.session.delete(log)
+        
+        # Delete medications
+        medications = Medication.query.filter_by(resident_id=resident_id).all()
+        for med in medications:
+            db.session.delete(med)
+        
+        # Delete documents and their files
+        documents = Document.query.filter_by(resident_id=resident_id).all()
+        for doc in documents:
+            try:
+                os.remove(os.path.join(app.config['UPLOAD_FOLDER'], doc.filename))
+            except OSError:
+                pass  # File might not exist
+            db.session.delete(doc)
+        
+        # Delete daily logs
+        FoodIntake.query.filter_by(resident_id=resident_id).delete()
+        LiquidIntake.query.filter_by(resident_id=resident_id).delete()
+        BowelMovement.query.filter_by(resident_id=resident_id).delete()
+        UrineOutput.query.filter_by(resident_id=resident_id).delete()
+        Vitals.query.filter_by(resident_id=resident_id).delete()
+        
+        # Finally delete the resident
+        db.session.delete(resident)
+        db.session.commit()
+        
+        # Add audit log
+        audit_log = AuditLog(user_id=current_user.id, action=f"Deleted resident {name}")
+        db.session.add(audit_log)
+        db.session.commit()
+        
+        flash('Resident deleted successfully.')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting resident: {str(e)}')
+    
     return redirect(url_for('home'))
 
 @app.route('/resident/<int:resident_id>')
