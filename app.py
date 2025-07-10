@@ -36,13 +36,12 @@ def init_medications():
         conn.commit()
     conn.close()
 
-   
 
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', os.urandom(24))
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///afh.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
 app.config['UPLOAD_FOLDER'] = 'documents'
-app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5MB file size limit
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB file size limit
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
@@ -50,6 +49,16 @@ app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'your-email@gmail.
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', 'your-app-password')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_USERNAME', 'your-email@gmail.com')
 
+# Initialize extensions
+db = SQLAlchemy(app)
+csrf = CSRFProtect(app)
+mail = Mail(app)
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'  # Adjust to your login route
+
+# Encryption setup
+ENCRYPTION_KEY = os.environ.get('ENCRYPTION_KEY', Fernet.generate_key().decode())
+cipher = Fernet(ENCRYPTION_KEY.encode())
 
 # Initialize encryption
 ENCRYPTION_KEY = os.environ.get('ENCRYPTION_KEY')
@@ -58,6 +67,53 @@ if not ENCRYPTION_KEY:
     ENCRYPTION_KEY = Fernet.generate_key().decode()
     print("Warning: Using generated encryption key. Set ENCRYPTION_KEY in secrets for production.")
 cipher = Fernet(ENCRYPTION_KEY.encode())
+
+# === Place the Resident Model with Encryption Here ===
+class EncryptedString(TypeDecorator):
+    impl = Text
+
+    def process_bind_param(self, value, dialect):
+        if value is not None:
+            return cipher.encrypt(value.encode()).decode()
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value is not None:
+            return cipher.decrypt(value.encode()).decode()
+        return value
+
+class Resident(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(EncryptedString, nullable=False)
+    # Add other fields as needed, e.g.:
+    # date_of_birth = db.Column(db.Date)
+    # medical_notes = db.Column(EncryptedString)
+    # medications = db.relationship('Medication', backref='resident', cascade='all, delete-orphan')
+
+# === Other Forms and Routes Follow ===
+class DeleteResidentForm(FlaskForm):
+    submit = SubmitField('Delete')
+
+# Example delete route
+@app.route('/residents/delete/<int:resident_id>', methods=['GET', 'POST'])
+@login_required
+def delete_resident(resident_id):
+    resident = Resident.query.get_or_404(resident_id)
+    form = DeleteResidentForm()
+
+    if form.validate_on_submit():
+        db.session.delete(resident)
+        db.session.commit()
+        flash('Resident deleted successfully.', 'success')
+        return redirect(url_for('residents_list'))  # Adjust to your residents list route
+
+    return render_template('delete_resident.html', resident=resident, form=form)
+
+# Initialize database
+with app.app_context():
+    db.create_all()
+
+# Other routes and logic...
 
 from models import db, Resident, FoodIntake, LiquidIntake, BowelMovement, UrineOutput, Vitals, EncryptedText
 
@@ -550,14 +606,52 @@ def delete_resident(resident_id):
     if current_user.role != 'admin':
         flash('Access denied')
         return redirect(url_for('home'))
+    
     resident = Resident.query.get_or_404(resident_id)
     name = resident.name
-    db.session.delete(resident)
-    db.session.commit()
-    audit_log = AuditLog(user_id=current_user.id, action=f"Deleted resident {name}")
-    db.session.add(audit_log)
-    db.session.commit()
-    flash('Resident deleted successfully.')
+    
+    try:
+        # Delete related records first to avoid foreign key constraints
+        # Delete medication logs
+        medication_logs = MedicationLog.query.filter_by(resident_id=resident_id).all()
+        for log in medication_logs:
+            db.session.delete(log)
+        
+        # Delete medications
+        medications = Medication.query.filter_by(resident_id=resident_id).all()
+        for med in medications:
+            db.session.delete(med)
+        
+        # Delete documents and their files
+        documents = Document.query.filter_by(resident_id=resident_id).all()
+        for doc in documents:
+            try:
+                os.remove(os.path.join(app.config['UPLOAD_FOLDER'], doc.filename))
+            except OSError:
+                pass  # File might not exist
+            db.session.delete(doc)
+        
+        # Delete daily logs
+        FoodIntake.query.filter_by(resident_id=resident_id).delete()
+        LiquidIntake.query.filter_by(resident_id=resident_id).delete()
+        BowelMovement.query.filter_by(resident_id=resident_id).delete()
+        UrineOutput.query.filter_by(resident_id=resident_id).delete()
+        Vitals.query.filter_by(resident_id=resident_id).delete()
+        
+        # Finally delete the resident
+        db.session.delete(resident)
+        db.session.commit()
+        
+        # Add audit log
+        audit_log = AuditLog(user_id=current_user.id, action=f"Deleted resident {name}")
+        db.session.add(audit_log)
+        db.session.commit()
+        
+        flash('Resident deleted successfully.')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting resident: {str(e)}')
+    
     return redirect(url_for('home'))
 
 @app.route('/resident/<int:resident_id>')
@@ -761,18 +855,18 @@ def daily_log_wizard(resident_id):
 def daily_log_submit(resident_id):
     if current_user.role not in ['admin', 'caregiver']:
         return jsonify({'error': 'Access denied'}), 403
-    
+
     resident = Resident.query.get_or_404(resident_id)
     meal_type = request.form.get('meal_type')
     form_data = json.loads(request.form.get('form_data', '{}'))
     today = date.today()
-    
+
     try:
         # Save Vitals (breakfast only)
         if meal_type == 'breakfast' and form_data.get('systolic') and form_data.get('diastolic') and form_data.get('pulse'):
             # Delete existing vitals for the day
             Vitals.query.filter_by(resident_id=resident_id, date=today, meal_type='breakfast').delete()
-            
+
             vitals = Vitals(
                 resident_id=resident_id,
                 date=today,
@@ -782,12 +876,12 @@ def daily_log_submit(resident_id):
                 pulse=int(form_data['pulse'])
             )
             db.session.add(vitals)
-        
+
         # Save Food Intake
         if form_data.get('intake_level'):
             # Delete existing food intake for the meal
             FoodIntake.query.filter_by(resident_id=resident_id, date=today, meal_type=meal_type).delete()
-            
+
             food = FoodIntake(
                 resident_id=resident_id,
                 date=today,
@@ -796,11 +890,11 @@ def daily_log_submit(resident_id):
                 notes=form_data.get('notes') if form_data.get('intake_level') == 'Other' else None
             )
             db.session.add(food)
-        
+
         # Save Liquid Intake - Multiple entries
         # Delete existing liquid intakes for the meal
         LiquidIntake.query.filter_by(resident_id=resident_id, date=today, meal_type=meal_type).delete()
-        
+
         # Save each liquid intake entry
         for i in range(1, 4):  # Liquid 1, 2, 3
             liquid_key = f'liquid_{i}'
@@ -812,12 +906,12 @@ def daily_log_submit(resident_id):
                     intake=f"Liquid {i}: {form_data[liquid_key]}"
                 )
                 db.session.add(liquid)
-        
+
         # Save Bowel Movement
         if form_data.get('size') and form_data.get('consistency'):
             # Delete existing bowel movement for the meal
             BowelMovement.query.filter_by(resident_id=resident_id, date=today, meal_type=meal_type).delete()
-            
+
             bowel = BowelMovement(
                 resident_id=resident_id,
                 date=today,
@@ -826,12 +920,12 @@ def daily_log_submit(resident_id):
                 consistency=form_data['consistency']
             )
             db.session.add(bowel)
-        
+
         # Save Urine Output
         if form_data.get('urine_output'):
             # Delete existing urine output for the meal
             UrineOutput.query.filter_by(resident_id=resident_id, date=today, meal_type=meal_type).delete()
-            
+
             urine = UrineOutput(
                 resident_id=resident_id,
                 date=today,
@@ -839,16 +933,16 @@ def daily_log_submit(resident_id):
                 output=form_data['urine_output']
             )
             db.session.add(urine)
-        
+
         db.session.commit()
-        
+
         # Audit log
         audit_log = AuditLog(user_id=current_user.id, action=f"Completed {meal_type} log for {resident.name}")
         db.session.add(audit_log)
         db.session.commit()
-        
+
         return jsonify({'success': True})
-    
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -1289,7 +1383,51 @@ if __name__ == '__main__':
             if not MedicationCatalog.query.filter_by(name=med['name']).first():
                 db.session.add(MedicationCatalog(**med))
         db.session.commit()
-    
+
+        # Sync ELDERLY_MEDS to MedicationCatalog
+        print("Syncing medications from ELDERLY_MEDS...")
+        for brand_name, generic_name, common_uses in ELDERLY_MEDS:
+            if not MedicationCatalog.query.filter_by(name=brand_name).first():
+                catalog_entry = MedicationCatalog(
+                    name=brand_name,
+                    default_dosage='',
+                    default_frequency='',
+                    default_notes=f'Generic: {generic_name}',
+                    form='',
+                    common_uses=common_uses
+                )
+                db.session.add(catalog_entry)
+        db.session.commit()
+        print("Medication sync complete!")
+
+        # Migrate end_date to expiration_date column if needed
+        try:
+            # Test if expiration_date column exists
+            db.session.execute("SELECT expiration_date FROM medication LIMIT 1")
+            print("expiration_date column already exists")
+        except Exception as e:
+            if "no such column" in str(e):
+                print("Migrating medication table to use expiration_date...")
+                try:
+                    # Check if end_date column exists
+                    try:
+                        db.session.execute("SELECT end_date FROM medication LIMIT 1")
+                        # end_date exists, rename it to expiration_date
+                        print("Renaming end_date to expiration_date...")
+                        db.session.execute("ALTER TABLE medication RENAME COLUMN end_date TO expiration_date")
+                        db.session.commit()
+                        print("Successfully renamed end_date to expiration_date!")
+                    except:
+                        # end_date doesn't exist, create expiration_date
+                        print("Adding expiration_date column...")
+                        db.session.execute("ALTER TABLE medication ADD COLUMN expiration_date DATE")
+                        db.session.commit()
+                        print("expiration_date column added successfully!")
+                except Exception as alter_error:
+                    print(f"Error updating medication table: {alter_error}")
+            else:
+                print(f"Unexpected error: {e}")
+
     import os
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port, debug=False)
