@@ -49,17 +49,6 @@ app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'your-email@gmail.
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', 'your-app-password')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_USERNAME', 'your-email@gmail.com')
 
-# Initialize extensions
-db = SQLAlchemy(app)
-csrf = CSRFProtect(app)
-mail = Mail(app)
-login_manager = LoginManager(app)
-login_manager.login_view = 'login'  # Adjust to your login route
-
-# Encryption setup
-ENCRYPTION_KEY = os.environ.get('ENCRYPTION_KEY', Fernet.generate_key().decode())
-cipher = Fernet(ENCRYPTION_KEY.encode())
-
 # Initialize encryption
 ENCRYPTION_KEY = os.environ.get('ENCRYPTION_KEY')
 if not ENCRYPTION_KEY:
@@ -68,22 +57,18 @@ if not ENCRYPTION_KEY:
     print("Warning: Using generated encryption key. Set ENCRYPTION_KEY in secrets for production.")
 cipher = Fernet(ENCRYPTION_KEY.encode())
 
-# === Forms and Routes ===
+# Import models and initialize database
+from models import db, Resident, FoodIntake, LiquidIntake, BowelMovement, UrineOutput, Vitals, EncryptedText
+db.init_app(app)
 
-
-from models import Resident, FoodIntake, LiquidIntake, BowelMovement, UrineOutput, Vitals, EncryptedText
+# Initialize other extensions
+csrf = CSRFProtect(app)
 mail = Mail(app)
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
 
 # Ensure upload folder exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-
-# Set up Flask-Login
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'login'
-
-# CSRF Protection
-csrf = CSRFProtect(app)
 
 # Database Models
 class User(db.Model, UserMixin):

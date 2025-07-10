@@ -12,6 +12,7 @@ if not ENCRYPTION_KEY:
     ENCRYPTION_KEY = Fernet.generate_key().decode()
 cipher = Fernet(ENCRYPTION_KEY.encode())
 
+# Initialize SQLAlchemy instance
 db = SQLAlchemy()
 
 # Custom SQLAlchemy type for encrypted fields
