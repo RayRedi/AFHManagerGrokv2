@@ -1266,7 +1266,7 @@ if __name__ == '__main__':
             caregiver = User(username='caregiver', password_hash=generate_password_hash('caregiver123'), role='caregiver')
             db.session.add(caregiver)
             db.session.commit()
-        if not Resident.query.filter_by(name='John Doe').first():
+        if not Resident.query.first():
             resident = Resident(name='John Doe', dob=date(1950, 1, 1), medical_info='Diabetic', emergency_contact='Jane Doe - 555-1234')
             db.session.add(resident)
             db.session.commit()
