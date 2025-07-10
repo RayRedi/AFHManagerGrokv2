@@ -68,56 +68,10 @@ if not ENCRYPTION_KEY:
     print("Warning: Using generated encryption key. Set ENCRYPTION_KEY in secrets for production.")
 cipher = Fernet(ENCRYPTION_KEY.encode())
 
-# === Place the Resident Model with Encryption Here ===
-class EncryptedString(TypeDecorator):
-    impl = Text
+# === Forms and Routes ===
 
-    def process_bind_param(self, value, dialect):
-        if value is not None:
-            return cipher.encrypt(value.encode()).decode()
-        return value
 
-    def process_result_value(self, value, dialect):
-        if value is not None:
-            return cipher.decrypt(value.encode()).decode()
-        return value
-
-class Resident(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(EncryptedString, nullable=False)
-    # Add other fields as needed, e.g.:
-    # date_of_birth = db.Column(db.Date)
-    # medical_notes = db.Column(EncryptedString)
-    # medications = db.relationship('Medication', backref='resident', cascade='all, delete-orphan')
-
-# === Other Forms and Routes Follow ===
-class DeleteResidentForm(FlaskForm):
-    submit = SubmitField('Delete')
-
-# Example delete route
-@app.route('/residents/delete/<int:resident_id>', methods=['GET', 'POST'])
-@login_required
-def delete_resident(resident_id):
-    resident = Resident.query.get_or_404(resident_id)
-    form = DeleteResidentForm()
-
-    if form.validate_on_submit():
-        db.session.delete(resident)
-        db.session.commit()
-        flash('Resident deleted successfully.', 'success')
-        return redirect(url_for('residents_list'))  # Adjust to your residents list route
-
-    return render_template('delete_resident.html', resident=resident, form=form)
-
-# Initialize database
-with app.app_context():
-    db.create_all()
-
-# Other routes and logic...
-
-from models import db, Resident, FoodIntake, LiquidIntake, BowelMovement, UrineOutput, Vitals, EncryptedText
-
-db.init_app(app)
+from models import Resident, FoodIntake, LiquidIntake, BowelMovement, UrineOutput, Vitals, EncryptedText
 mail = Mail(app)
 
 # Ensure upload folder exists
