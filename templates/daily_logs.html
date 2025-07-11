@@ -250,25 +250,23 @@ class DailyLogWizard {
                 break;
             case 6: // Bowel Movement
                 html += `
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="bowel_size" class="form-label">Size</label>
-                            <select class="form-select" id="bowel_size">
-                                <option value="">Select size</option>
-                                <option value="Small" ${this.formData.bowel_size === 'Small' ? 'selected' : ''}>Small</option>
-                                <option value="Medium" ${this.formData.bowel_size === 'Medium' ? 'selected' : ''}>Medium</option>
-                                <option value="Large" ${this.formData.bowel_size === 'Large' ? 'selected' : ''}>Large</option>
-                            </select>
+                    <div class="mb-3">
+                        <label class="form-label">Size</label>
+                        <div class="d-grid gap-2" style="grid-template-columns: repeat(3, 1fr);">
+                            <button type="button" class="btn btn-outline-primary bowel-size-btn ${this.formData.bowel_size === 'Small' ? 'active' : ''}" data-value="Small">Small</button>
+                            <button type="button" class="btn btn-outline-primary bowel-size-btn ${this.formData.bowel_size === 'Medium' ? 'active' : ''}" data-value="Medium">Medium</button>
+                            <button type="button" class="btn btn-outline-primary bowel-size-btn ${this.formData.bowel_size === 'Large' ? 'active' : ''}" data-value="Large">Large</button>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="bowel_consistency" class="form-label">Consistency</label>
-                            <select class="form-select" id="bowel_consistency">
-                                <option value="">Select consistency</option>
-                                <option value="Soft" ${this.formData.bowel_consistency === 'Soft' ? 'selected' : ''}>Soft</option>
-                                <option value="Medium" ${this.formData.bowel_consistency === 'Medium' ? 'selected' : ''}>Medium</option>
-                                <option value="Hard" ${this.formData.bowel_consistency === 'Hard' ? 'selected' : ''}>Hard</option>
-                            </select>
+                        <input type="hidden" id="bowel_size" value="${this.formData.bowel_size || ''}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Consistency</label>
+                        <div class="d-grid gap-2" style="grid-template-columns: repeat(3, 1fr);">
+                            <button type="button" class="btn btn-outline-primary bowel-consistency-btn ${this.formData.bowel_consistency === 'Soft' ? 'active' : ''}" data-value="Soft">Soft</button>
+                            <button type="button" class="btn btn-outline-primary bowel-consistency-btn ${this.formData.bowel_consistency === 'Medium' ? 'active' : ''}" data-value="Medium">Medium</button>
+                            <button type="button" class="btn btn-outline-primary bowel-consistency-btn ${this.formData.bowel_consistency === 'Hard' ? 'active' : ''}" data-value="Hard">Hard</button>
                         </div>
+                        <input type="hidden" id="bowel_consistency" value="${this.formData.bowel_consistency || ''}">
                     </div>
                     <div class="mb-3">
                         <label for="bowel_notes" class="form-label">Notes</label>
@@ -358,6 +356,38 @@ class DailyLogWizard {
                 const notesContainer = document.getElementById('food_notes_container');
                 if (notesContainer) {
                     notesContainer.style.display = e.target.dataset.value === 'Other' ? 'block' : 'none';
+                }
+            });
+        });
+
+        // Bowel size buttons
+        const bowelSizeButtons = document.querySelectorAll('.bowel-size-btn');
+        bowelSizeButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                // Remove active class from all buttons
+                bowelSizeButtons.forEach(btn => btn.classList.remove('active'));
+                // Add active class to clicked button
+                e.target.classList.add('active');
+                // Update hidden input
+                const hiddenInput = document.getElementById('bowel_size');
+                if (hiddenInput) {
+                    hiddenInput.value = e.target.dataset.value;
+                }
+            });
+        });
+
+        // Bowel consistency buttons
+        const bowelConsistencyButtons = document.querySelectorAll('.bowel-consistency-btn');
+        bowelConsistencyButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                // Remove active class from all buttons
+                bowelConsistencyButtons.forEach(btn => btn.classList.remove('active'));
+                // Add active class to clicked button
+                e.target.classList.add('active');
+                // Update hidden input
+                const hiddenInput = document.getElementById('bowel_consistency');
+                if (hiddenInput) {
+                    hiddenInput.value = e.target.dataset.value;
                 }
             });
         });
@@ -496,19 +526,25 @@ document.addEventListener('DOMContentLoaded', function() {
 // Add CSS for active buttons
 const style = document.createElement('style');
 style.textContent = `
-    .food-intake-btn.active {
+    .food-intake-btn.active,
+    .bowel-size-btn.active,
+    .bowel-consistency-btn.active {
         background-color: #6b48ff !important;
         border-color: #6b48ff !important;
         color: white !important;
     }
-    .food-intake-btn {
+    .food-intake-btn,
+    .bowel-size-btn,
+    .bowel-consistency-btn {
         padding: 15px;
         font-weight: 600;
         font-size: 1.1rem;
         border-radius: 8px;
         transition: all 0.2s ease;
     }
-    .food-intake-btn:hover {
+    .food-intake-btn:hover,
+    .bowel-size-btn:hover,
+    .bowel-consistency-btn:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
