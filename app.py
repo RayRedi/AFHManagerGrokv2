@@ -942,17 +942,6 @@ def daily_log_submit(resident_id):
         db.session.rollback()
         return jsonify({'error': f'Database error: {str(e)}'}), 500
 
-@app.route('/resident/<int:resident_id>/daily-logs', methods=['GET'])
-@login_required
-def daily_logs_content(resident_id):
-    resident = Resident.query.get_or_404(resident_id)
-    
-    # Handle AJAX requests by returning only the content
-    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-    
-    template_name = 'daily_logs_content.html' if is_ajax else 'daily_logs.html'
-    return render_template(template_name, resident=resident)
-
 @app.route('/resident/<int:resident_id>/logs', methods=['GET', 'POST'])
 @login_required
 def daily_logs(resident_id):
@@ -1071,9 +1060,6 @@ def medications(resident_id):
     log_form = MedicationLogForm()
     log_form.medication_id.choices = [(med.id, med.name) for med in medications]
 
-    # Handle AJAX requests by returning only the content
-    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-
     if request.method == 'POST':
         if medication_form.validate_on_submit() and 'add_medication' in request.form:
             name = sanitize_input(medication_form.name.data)
@@ -1124,9 +1110,7 @@ def medications(resident_id):
         return redirect(url_for('medications', resident_id=resident_id))
 
     medication_logs = MedicationLog.query.filter_by(resident_id=resident_id).all()
-    
-    template_name = 'medications_content.html' if is_ajax else 'medications.html'
-    return render_template(template_name, resident=resident, medications=medications, medication_logs=medication_logs,
+    return render_template('medications.html', resident=resident, medications=medications, medication_logs=medication_logs,
                           medication_form=medication_form, log_form=log_form)
 
 @app.route('/resident/<int:resident_id>/documents', methods=['GET', 'POST'])
@@ -1139,9 +1123,6 @@ def documents(resident_id):
     resident = Resident.query.get_or_404(resident_id)
     documents = Document.query.filter_by(resident_id=resident_id).all()
     form = DocumentForm()
-    
-    # Handle AJAX requests by returning only the content
-    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
     expired_documents = [doc for doc in documents if doc.expiration_date and doc.expiration_date < date.today()]
 
@@ -1188,8 +1169,7 @@ def documents(resident_id):
             flash('Document deleted successfully.')
         return redirect(url_for('documents', resident_id=resident_id))
 
-    template_name = 'documents_content.html' if is_ajax else 'documents.html'
-    return render_template(template_name, resident=resident, documents=documents, expired_documents=expired_documents, form=form)
+    return render_template('documents.html', resident=resident, documents=documents, expired_documents=expired_documents, form=form)
 
 @app.route('/documents/<path:filename>')
 @login_required
