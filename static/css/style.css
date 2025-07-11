@@ -14,11 +14,13 @@ body {
 
 .frequency-btn {
     flex: 1;
-    min-width: 140px;
+    min-width: 160px;
     border-radius: 8px;
     font-weight: 500;
     transition: all 0.3s ease;
     white-space: nowrap;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
 }
 
 .frequency-btn:hover {
@@ -99,6 +101,15 @@ body {
         flex: none;
         width: 100%;
         min-width: auto;
+        font-size: 0.85rem;
+        padding: 0.6rem 0.75rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .frequency-btn {
+        font-size: 0.8rem;
+        padding: 0.5rem 0.6rem;
     }
 }
 body {
