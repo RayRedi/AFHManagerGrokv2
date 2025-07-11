@@ -58,7 +58,7 @@ if not ENCRYPTION_KEY:
 cipher = Fernet(ENCRYPTION_KEY.encode())
 
 # Import models and initialize database
-from models import db, Resident, FoodIntake, LiquidIntake, BowelMovement, UrineOutput, Vitals, EncryptedText
+from models import db, Resident, FoodIntake, LiquidIntake, BowelMovement, UrineOutput, Vitals, EncryptedText, IncidentReport
 db.init_app(app)
 
 # Initialize other extensions
@@ -170,6 +170,9 @@ class MedicationCatalog(db.Model):
     @common_uses.setter
     def common_uses(self, value):
         self._common_uses = value
+
+# Import forms
+from forms import FoodIntakeForm, LiquidIntakeForm, BowelMovementForm, UrineOutputForm, IncidentReportForm
 
 # WTForms for CSRF-protected forms
 class LoginForm(FlaskForm):
@@ -1297,6 +1300,105 @@ def report(resident_id):
                           bowel_movements=bowel_movements, urine_outputs=urine_outputs,
                           medication_logs=medication_logs, chart_labels=json.dumps(chart_labels),
                           chart_data=json.dumps(chart_data), form=form)
+
+@app.route('/resident/<int:resident_id>/incidents', methods=['GET', 'POST'])
+@login_required
+def incidents(resident_id):
+    if current_user.role not in ['admin', 'caregiver']:
+        flash('Access denied')
+        return redirect(url_for('home'))
+
+    resident = Resident.query.get_or_404(resident_id)
+    form = IncidentReportForm()
+    
+    if form.validate_on_submit():
+        incident = IncidentReport(
+            resident_id=resident_id,
+            incident_type=form.incident_type.data,
+            severity=form.severity.data,
+            description=sanitize_input(form.description.data),
+            immediate_action=sanitize_input(form.immediate_action.data),
+            injury_occurred=form.injury_occurred.data,
+            medical_attention=form.medical_attention.data,
+            witnesses=sanitize_input(form.witnesses.data),
+            follow_up_required=form.follow_up_required.data,
+            follow_up_notes=sanitize_input(form.follow_up_notes.data),
+            reported_by=current_user.id
+        )
+        db.session.add(incident)
+        db.session.commit()
+        
+        # Send alert email for high severity incidents
+        if incident.severity in ['high', 'critical']:
+            send_alert_email(
+                f"Critical Incident Report - {resident.name}",
+                f"A {incident.severity} severity {incident.incident_type} incident was reported for {resident.name}.\n\n"
+                f"Description: {incident.description}\n"
+                f"Immediate Action: {incident.immediate_action}\n"
+                f"Reported by: {current_user.username}"
+            )
+        
+        audit_log = AuditLog(user_id=current_user.id, action=f"Created incident report for {resident.name}")
+        db.session.add(audit_log)
+        db.session.commit()
+        
+        flash('Incident report submitted successfully.')
+        return redirect(url_for('incidents', resident_id=resident_id))
+    
+    # Get all incidents for this resident
+    incidents = IncidentReport.query.filter_by(resident_id=resident_id).order_by(IncidentReport.date_reported.desc()).all()
+    
+    return render_template('incidents.html', resident=resident, incidents=incidents, form=form)
+
+@app.route('/incident/<int:incident_id>/update_status', methods=['POST'])
+@login_required
+def update_incident_status(incident_id):
+    if current_user.role != 'admin':
+        flash('Access denied')
+        return redirect(url_for('home'))
+    
+    incident = IncidentReport.query.get_or_404(incident_id)
+    new_status = request.form.get('status')
+    
+    if new_status in ['open', 'in_progress', 'closed']:
+        incident.status = new_status
+        db.session.commit()
+        
+        audit_log = AuditLog(user_id=current_user.id, action=f"Updated incident #{incident.id} status to {new_status}")
+        db.session.add(audit_log)
+        db.session.commit()
+        
+        flash('Incident status updated successfully.')
+    else:
+        flash('Invalid status.')
+    
+    return redirect(url_for('incidents', resident_id=incident.resident_id))
+
+@app.route('/incidents/all')
+@login_required
+def all_incidents():
+    if current_user.role != 'admin':
+        flash('Access denied')
+        return redirect(url_for('home'))
+    
+    # Get incidents with filters
+    status_filter = request.args.get('status', 'all')
+    severity_filter = request.args.get('severity', 'all')
+    type_filter = request.args.get('type', 'all')
+    
+    query = IncidentReport.query
+    
+    if status_filter != 'all':
+        query = query.filter_by(status=status_filter)
+    if severity_filter != 'all':
+        query = query.filter_by(severity=severity_filter)
+    if type_filter != 'all':
+        query = query.filter_by(incident_type=type_filter)
+    
+    incidents = query.order_by(IncidentReport.date_reported.desc()).all()
+    
+    return render_template('all_incidents.html', incidents=incidents, 
+                         status_filter=status_filter, severity_filter=severity_filter, type_filter=type_filter)
 
 # Run the app and initialize database with sample data
 if __name__ == '__main__':

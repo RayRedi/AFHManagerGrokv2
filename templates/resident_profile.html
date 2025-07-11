@@ -9,6 +9,7 @@
             <p><strong>Emergency Contact:</strong> {{ resident.emergency_contact or 'N/A' }}</p>
             <div class="action-buttons">
                 <a href="{{ url_for('daily_logs', resident_id=resident.id) }}" class="btn action-btn btn-primary">Daily Logs</a>
+                <a href="{{ url_for('incidents', resident_id=resident.id) }}" class="btn action-btn btn-warning">Incident Reports</a>
                 <a href="{{ url_for('report', resident_id=resident.id) }}" class="btn action-btn btn-primary">View Report</a>
                 {% if current_user.role == 'admin' %}
                     <a href="{{ url_for('medications', resident_id=resident.id) }}" class="btn action-btn btn-primary">Medications</a>
