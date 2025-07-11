@@ -674,3 +674,119 @@ body {
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
     transition: all 0.3s ease;
 }
+
+/* Action Buttons Container (Optional for layout) */
+.action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px; /* Space between buttons */
+}
+
+/* Consistent Action Button Styles */
+.action-btn {
+    /* Inherit base button styles */
+    padding: 10px 20px;
+    font-size: 16px;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    min-width: 150px; /* Ensure all buttons have the same width */
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Default Action Button Color (Blue Gradient) */
+.action-btn.btn-primary {
+    background: linear-gradient(90deg, #6b48ff, #0052cc);
+    border: none;
+    color: white;
+}
+
+.action-btn.btn-primary:hover {
+    background: linear-gradient(90deg, #5a3de6, #003d99);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(107, 72, 255, 0.3);
+}
+
+/* Delete Resident Button (Red) */
+.action-btn.btn-danger {
+    background: #dc3545;
+    border: 2px solid #dc3545;
+    color: white;
+}
+
+.action-btn.btn-danger:hover {
+    background: #c82333;
+    border-color: #c82333;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+}
+
+/* Ensure buttons are the same size on smaller screens */
+@media (max-width: 576px) {
+    .action-btn {
+        min-width: 100%; /* Full width on small screens */
+        padding: 8px 16px;
+        font-size: 14px;
+    }
+}
+/* Action Buttons Container */
+.action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+/* Consistent Action Button Styles */
+.btn.action-btn {
+    padding: 10px 20px !important;
+    font-size: 16px !important;
+    border-radius: 8px !important;
+    font-weight: 500 !important;
+    transition: all 0.3s ease !important;
+    border: 2px solid transparent !important;
+    min-width: 150px !important;
+    text-align: center !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* Default Action Button Color (Blue Gradient) */
+.btn.action-btn.btn-primary {
+    background: linear-gradient(90deg, #6b48ff, #0052cc) !important;
+    border: none !important;
+    color: white !important;
+}
+
+.btn.action-btn.btn-primary:hover {
+    background: linear-gradient(90deg, #5a3de6, #003d99) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(107, 72, 255, 0.3) !important;
+}
+
+/* Delete Resident Button (Red) */
+.btn.action-btn.btn-danger {
+    background: #dc3545 !important;
+    border: 2px solid #dc3545 !important;
+    color: white !important;
+}
+
+.btn.action-btn.btn-danger:hover {
+    background: #c82333 !important;
+    border-color: #c82333 !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3) !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 576px) {
+    .btn.action-btn {
+        min-width: 100% !important;
+        padding: 8px 16px !important;
+        font-size: 14px !important;
+    }
+}
