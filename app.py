@@ -288,7 +288,7 @@ def send_alert_email(subject, body):
 def utility_processor():
     def get_current_year():
         return datetime.now().year
-    return dict(current_year=get_current_year)
+    return dict(get_current_year=get_current_year)
 
 # User loader for Flask-Login
 @login_manager.user_loader

@@ -1,49 +1,267 @@
-{% extends 'base.html' %}
 
+{% extends "base.html" %}
+{% block title %}{{ resident.name }} - AFH Management{% endblock %}
 {% block content %}
-    <h1>{{ resident.name }}</h1>
-    <div class="card">
-        <div class="card-body">
-            <p><strong>DOB:</strong> {{ resident.formatted_dob or 'N/A' }}</p>
-            <p><strong>Medical Info:</strong> {{ resident.medical_info or 'N/A' }}</p>
-            <p><strong>Emergency Contact:</strong> {{ resident.emergency_contact or 'N/A' }}</p>
-            <div class="action-buttons">
-                <a href="{{ url_for('daily_logs', resident_id=resident.id) }}" class="btn action-btn btn-primary">Daily Logs</a>
-                <a href="{{ url_for('incidents', resident_id=resident.id) }}" class="btn action-btn btn-warning">Incident Reports</a>
-                <a href="{{ url_for('report', resident_id=resident.id) }}" class="btn action-btn btn-primary">View Report</a>
-                {% if current_user.role == 'admin' %}
-                    <a href="{{ url_for('medications', resident_id=resident.id) }}" class="btn action-btn btn-primary">Medications</a>
-                    <a href="{{ url_for('documents', resident_id=resident.id) }}" class="btn action-btn btn-primary">Documents</a>
-                    <a href="{{ url_for('edit_resident', resident_id=resident.id) }}" class="btn action-btn btn-primary">Edit Resident</a>
-                    <button onclick="deleteResident({{ resident.id }})" class="btn action-btn btn-danger">Delete Resident</button>
-                {% endif %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar Navigation -->
+        <div class="col-lg-3 col-xl-2 bg-dark text-white p-0" id="resident-sidebar">
+            <div class="sidebar-header p-3">
+                <h5 class="mb-1">{{ resident.name }}</h5>
+                <small class="text-light">DOB: {{ resident.formatted_dob or 'N/A' }}</small>
+                <hr class="border-light">
+                <small class="text-light">Medical: {{ resident.medical_info or 'None specified' }}</small>
+                <br>
+                <small class="text-light">Emergency: {{ resident.emergency_contact or 'Not specified' }}</small>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a href="#" class="nav-link text-white sidebar-link" data-section="medications">
+                            <i class="fas fa-pills me-2"></i>Medications
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link text-white sidebar-link" data-section="documents">
+                            <i class="fas fa-file-alt me-2"></i>Documents
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link text-white sidebar-link" data-section="daily-logs">
+                            <i class="fas fa-clipboard-list me-2"></i>Daily Logs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link text-white sidebar-link" data-section="incident-reports">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Incident Reports
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link text-white sidebar-link" data-section="edit-resident">
+                            <i class="fas fa-edit me-2"></i>Edit Resident
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link text-white sidebar-link text-danger" data-section="delete-resident">
+                            <i class="fas fa-trash me-2"></i>Delete Resident
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+
+        <!-- Mobile Sidebar Toggle -->
+        <div class="d-lg-none">
+            <button class="btn btn-dark m-2" type="button" data-bs-toggle="collapse" data-bs-target="#mobile-sidebar">
+                <i class="fas fa-bars"></i> Menu
+            </button>
+            <div class="collapse" id="mobile-sidebar">
+                <div class="card">
+                    <div class="card-body">
+                        <h6>{{ resident.name }}</h6>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-primary sidebar-link" data-section="medications">
+                                <i class="fas fa-pills me-2"></i>Medications
+                            </button>
+                            <button class="btn btn-outline-primary sidebar-link" data-section="documents">
+                                <i class="fas fa-file-alt me-2"></i>Documents
+                            </button>
+                            <button class="btn btn-outline-primary sidebar-link" data-section="daily-logs">
+                                <i class="fas fa-clipboard-list me-2"></i>Daily Logs
+                            </button>
+                            <button class="btn btn-outline-primary sidebar-link" data-section="incident-reports">
+                                <i class="fas fa-exclamation-triangle me-2"></i>Incident Reports
+                            </button>
+                            <button class="btn btn-outline-primary sidebar-link" data-section="edit-resident">
+                                <i class="fas fa-edit me-2"></i>Edit Resident
+                            </button>
+                            <button class="btn btn-outline-danger sidebar-link" data-section="delete-resident">
+                                <i class="fas fa-trash me-2"></i>Delete Resident
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="col-lg-9 col-xl-10">
+            <div class="p-4">
+                <div id="main-content">
+                    <div class="text-center py-5">
+                        <i class="fas fa-arrow-left fa-3x text-muted mb-3"></i>
+                        <h4 class="text-muted">Select an option from the sidebar to view details</h4>
+                        <p class="text-muted">Choose from Medications, Documents, Daily Logs, Incident Reports, or other options to manage {{ resident.name }}'s information.</p>
+                    </div>
+                </div>
+                
+                <!-- Loading indicator -->
+                <div id="loading-indicator" class="text-center py-5" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Loading...</p>
+                </div>
             </div>
         </div>
     </div>
-    {% if current_user.role == 'admin' %}
-        <meta name="csrf-token" content="{{ csrf_token() }}">
-        <script>
-        async function deleteResident(residentId) {
-            if (!confirm('Are you sure you want to delete this resident?')) return;
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            try {
-                const response = await fetch(`/resident/${residentId}/delete`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': csrfToken,
-                        'Content-Type': 'application/json'
-                    }
-                });
-                if (response.ok) {
-                    window.location.href = '{{ url_for("home") }}';
-                } else {
-                    alert('Error deleting resident');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Failed to delete resident');
+</div>
+
+<style>
+#resident-sidebar {
+    min-height: calc(100vh - 76px);
+    background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%) !important;
+}
+
+.sidebar-nav .nav-link {
+    padding: 12px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    transition: all 0.3s ease;
+}
+
+.sidebar-nav .nav-link:hover {
+    background-color: rgba(255,255,255,0.1);
+    padding-left: 25px;
+}
+
+.sidebar-nav .nav-link.active {
+    background-color: rgba(255,255,255,0.2);
+    border-left: 4px solid #fff;
+}
+
+.sidebar-header {
+    border-bottom: 2px solid rgba(255,255,255,0.2);
+}
+
+@media (max-width: 991.98px) {
+    #resident-sidebar {
+        display: none;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const sidebarLinks = document.querySelectorAll('.sidebar-link');
+    const mainContent = document.getElementById('main-content');
+    const loadingIndicator = document.getElementById('loading-indicator');
+    
+    // Handle sidebar navigation
+    sidebarLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Remove active class from all links
+            sidebarLinks.forEach(l => l.classList.remove('active'));
+            
+            // Add active class to clicked link
+            this.classList.add('active');
+            
+            // Get section to load
+            const section = this.getAttribute('data-section');
+            loadSection(section);
+            
+            // Close mobile menu if open
+            const mobileCollapse = document.getElementById('mobile-sidebar');
+            if (mobileCollapse && mobileCollapse.classList.contains('show')) {
+                bootstrap.Collapse.getInstance(mobileCollapse).hide();
             }
+        });
+    });
+    
+    async function loadSection(section) {
+        // Show loading indicator
+        loadingIndicator.style.display = 'block';
+        mainContent.style.display = 'none';
+        
+        try {
+            let url;
+            let isFormPage = false;
+            
+            switch(section) {
+                case 'medications':
+                    url = `{{ url_for('medications', resident_id=resident.id) }}`;
+                    break;
+                case 'documents':
+                    url = `{{ url_for('documents', resident_id=resident.id) }}`;
+                    break;
+                case 'daily-logs':
+                    url = `{{ url_for('daily_logs', resident_id=resident.id) }}`;
+                    break;
+                case 'incident-reports':
+                    url = `{{ url_for('incidents', resident_id=resident.id) }}`;
+                    break;
+                case 'edit-resident':
+                    url = `{{ url_for('edit_resident', resident_id=resident.id) }}`;
+                    isFormPage = true;
+                    break;
+                case 'delete-resident':
+                    if (confirm('Are you sure you want to delete this resident? This action cannot be undone.')) {
+                        url = `{{ url_for('delete_resident', resident_id=resident.id) }}`;
+                        isFormPage = true;
+                    } else {
+                        loadingIndicator.style.display = 'none';
+                        mainContent.style.display = 'block';
+                        return;
+                    }
+                    break;
+                default:
+                    throw new Error('Unknown section');
+            }
+            
+            // For form pages, redirect directly
+            if (isFormPage) {
+                window.location.href = url;
+                return;
+            }
+            
+            // Fetch content via AJAX
+            const response = await fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to load content');
+            }
+            
+            const html = await response.text();
+            
+            // Extract content from the response (remove base template wrapper)
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const contentDiv = doc.querySelector('.container, .container-fluid, main') || doc.body;
+            
+            // Update main content
+            mainContent.innerHTML = contentDiv.innerHTML;
+            
+            // Re-initialize any JavaScript components if needed
+            if (typeof initializeMedicationSearch === 'function') {
+                setTimeout(() => {
+                    initializeMedicationSearch('med-search', 'medication-dropdown-home');
+                    initializeMedicationSearch('name', 'medication-dropdown');
+                }, 100);
+            }
+            
+        } catch (error) {
+            console.error('Error loading section:', error);
+            mainContent.innerHTML = `
+                <div class="alert alert-danger">
+                    <h5>Error Loading Content</h5>
+                    <p>Sorry, there was an error loading this section. Please try refreshing the page.</p>
+                    <button class="btn btn-outline-danger" onclick="window.location.reload()">
+                        <i class="fas fa-refresh me-2"></i>Refresh Page
+                    </button>
+                </div>
+            `;
+        } finally {
+            // Hide loading indicator and show content
+            loadingIndicator.style.display = 'none';
+            mainContent.style.display = 'block';
         }
-        </script>
-    {% endif %}
+    }
+});
+</script>
 {% endblock %}
