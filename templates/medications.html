@@ -298,22 +298,7 @@ class MedicationWizard {
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="wizard-form" class="form-label fw-semibold">
-                            Form <span class="text-muted">(optional)</span>
-                        </label>
-                        <select class="form-control" id="wizard-form">
-                            <option value="">Select form...</option>
-                            <option value="tablet">Tablet</option>
-                            <option value="capsule">Capsule</option>
-                            <option value="liquid">Liquid</option>
-                            <option value="injection">Injection</option>
-                            <option value="cream">Cream</option>
-                            <option value="drops">Drops</option>
-                            <option value="inhaler">Inhaler</option>
-                            <option value="patch">Patch</option>
-                        </select>
-                    </div>
+                    
                 `;
 
             case 3:
@@ -396,7 +381,6 @@ class MedicationWizard {
             case 2:
                 if (this.formData.dosage) document.getElementById('wizard-dosage').value = this.formData.dosage;
                 if (this.formData.frequency) document.getElementById('wizard-frequency').value = this.formData.frequency;
-                if (this.formData.form) document.getElementById('wizard-form').value = this.formData.form;
                 
                 // Setup frequency button handlers
                 document.querySelectorAll('.frequency-btn').forEach(btn => {
@@ -434,7 +418,6 @@ class MedicationWizard {
             case 2:
                 this.formData.dosage = document.getElementById('wizard-dosage').value;
                 this.formData.frequency = document.getElementById('wizard-frequency').value;
-                this.formData.form = document.getElementById('wizard-form').value;
                 break;
             case 3:
                 this.formData.start_date = document.getElementById('wizard-start-date').value;
@@ -467,8 +450,6 @@ class MedicationWizard {
                     <span class="${this.formData.frequency ? 'text-dark' : 'text-muted'}">${this.formData.frequency || 'Not specified'}</span>
                 </div>
                 <div class="col-md-6">
-                    <strong>Form:</strong><br>
-                    <span class="${this.formData.form ? 'text-dark' : 'text-muted'}">${this.formData.form || 'Not specified'}</span>
                 </div>
             </div>
             <hr>
@@ -558,7 +539,6 @@ class MedicationWizard {
             formData.append('dosage', this.formData.dosage || '');
             formData.append('frequency', this.formData.frequency || '');
             formData.append('notes', this.formData.notes || '');
-            formData.append('form', this.formData.form || '');
             formData.append('common_uses', this.formData.common_uses || '');
             formData.append('start_date', this.formData.start_date);
             formData.append('end_date', this.formData.end_date);
