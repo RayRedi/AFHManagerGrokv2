@@ -1519,7 +1519,8 @@ if __name__ == '__main__':
         # Migrate end_date to expiration_date column if needed
         try:
             # Test if expiration_date column exists
-            db.session.execute("SELECT expiration_date FROM medication LIMIT 1")
+            from sqlalchemy import text
+            db.session.execute(text("SELECT expiration_date FROM medication LIMIT 1"))
             print("expiration_date column already exists")
         except Exception as e:
             if "no such column" in str(e):
@@ -1527,16 +1528,16 @@ if __name__ == '__main__':
                 try:
                     # Check if end_date column exists
                     try:
-                        db.session.execute("SELECT end_date FROM medication LIMIT 1")
+                        db.session.execute(text("SELECT end_date FROM medication LIMIT 1"))
                         # end_date exists, rename it to expiration_date
                         print("Renaming end_date to expiration_date...")
-                        db.session.execute("ALTER TABLE medication RENAME COLUMN end_date TO expiration_date")
+                        db.session.execute(text("ALTER TABLE medication RENAME COLUMN end_date TO expiration_date"))
                         db.session.commit()
                         print("Successfully renamed end_date to expiration_date!")
                     except:
                         # end_date doesn't exist, create expiration_date
                         print("Adding expiration_date column...")
-                        db.session.execute("ALTER TABLE medication ADD COLUMN expiration_date DATE")
+                        db.session.execute(text("ALTER TABLE medication ADD COLUMN expiration_date DATE"))
                         db.session.commit()
                         print("expiration_date column added successfully!")
                 except Exception as alter_error:
