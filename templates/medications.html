@@ -139,14 +139,15 @@
                                 </div>
                             </div>
                             <div class="col-12 col-md-6 mb-3">
-                                <label for="end_date" class="form-label fw-semibold">End Date</label>
+                                <label for="end_date" class="form-label fw-semibold">
+                                    Expiration Date <span class="text-danger">*</span>
+                                </label>
                                 <div class="input-group">
                                     <span class="input-group-text">
                                         <i class="fas fa-calendar-minus text-muted"></i>
                                     </span>
-                                    {{ medication_form.end_date(class="form-control") }}
+                                    {{ medication_form.end_date(class="form-control", required=true) }}
                                 </div>
-                                <small class="text-muted">Leave blank if ongoing</small>
                             </div>
                         </div>
                     </div>
@@ -197,7 +198,7 @@
                             <th>Form</th>
                             <th>Common Uses</th>
                             <th>Start Date</th>
-                            <th>End Date</th>
+                            <th>Expiration Date</th>
                             <th>Actions</th>
                         </tr>
                     </thead>

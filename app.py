@@ -234,7 +234,7 @@ class MedicationForm(FlaskForm):
     form = StringField('Form', validators=[Length(max=50)])
     common_uses = TextAreaField('Common Uses')
     start_date = DateField('Start Date', validators=[DataRequired()])
-    end_date = DateField('End Date')
+    end_date = DateField('Expiration Date', validators=[DataRequired()])
     submit = SubmitField('Save Medication')
 
 class MedicationLogForm(FlaskForm):
