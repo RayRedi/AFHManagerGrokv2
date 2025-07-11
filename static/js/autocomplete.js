@@ -179,11 +179,14 @@ function initializeMedicationSearch(inputId, dropdownId) {
 
     // Update selected item
     function updateSelection(items) {
+        if (!items || items.length === 0) return;
         for (let i = 0; i < items.length; i++) {
-            items[i].classList.remove('selected');
-            if (i === selectedIndex) {
-                items[i].classList.add('selected');
-                items[i].scrollIntoView({ block: 'nearest' });
+            if (items[i]) {
+                items[i].classList.remove('selected');
+                if (i === selectedIndex) {
+                    items[i].classList.add('selected');
+                    items[i].scrollIntoView({ block: 'nearest' });
+                }
             }
         }
     }
@@ -191,6 +194,7 @@ function initializeMedicationSearch(inputId, dropdownId) {
     // Click outside to close
     document.addEventListener('click', (e) => {
         if (!searchInput || !dropdown) return; // Skip if elements are missing
+        if (!e.target) return; // Safety check
         if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
             hideDropdown();
             if (detailsDiv) detailsDiv.innerHTML = '';
