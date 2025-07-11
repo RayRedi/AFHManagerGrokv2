@@ -157,7 +157,8 @@ function initializeMedicationSearch(inputId, dropdownId) {
 
     // Keyboard navigation
     searchInput.addEventListener('keydown', (e) => {
-        const items = dropdown ? dropdown.getElementsByClassName('dropdown-item') : [];
+        if (!dropdown) return;
+        const items = dropdown.getElementsByClassName('dropdown-item');
         if (!items || items.length === 0) return;
 
         if (e.key === 'ArrowDown') {
@@ -173,7 +174,7 @@ function initializeMedicationSearch(inputId, dropdownId) {
             selectMedication(selectedIndex);
         } else if (e.key === 'Escape') {
             hideDropdown();
-            if (detailsDiv) detailsDiv.innerHTML = '';
+            if (detailsDiv) detailsDiv.style.display = 'none';
         }
     });
 
@@ -193,13 +194,134 @@ function initializeMedicationSearch(inputId, dropdownId) {
 
     // Click outside to close
     document.addEventListener('click', (e) => {
-        if (!searchInput || !dropdown) return; // Skip if elements are missing
-        if (!e.target) return; // Safety check
+        if (!searchInput || !dropdown || !e.target) return;
         if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
             hideDropdown();
-            if (detailsDiv) detailsDiv.innerHTML = '';
+            if (detailsDiv) detailsDiv.style.display = 'none';
         }
     });
+}
+
+// Frequency preset times configuration
+const FREQUENCY_PRESETS = {
+    'once-daily': ['07:00'],
+    'twice-daily': ['07:00', '19:00'],
+    'three-times-daily': ['07:00', '13:00', '19:00'],
+    'four-times-daily': ['07:00', '12:00', '16:00', '20:00'],
+    'as-needed': []
+};
+
+// Initialize medication frequency functionality
+function initializeMedicationFrequency() {
+    const frequencyButtons = document.querySelectorAll('.frequency-btn');
+    const frequencyInput = document.getElementById('frequency');
+    const timePickersContainer = document.getElementById('time-pickers-container');
+    const timeInputsContainer = document.getElementById('time-inputs');
+    
+    // Frequency button mappings
+    const frequencyMap = {
+        'once-daily': 'Daily',
+        'twice-daily': 'Twice daily',
+        'three-times-daily': 'Three times daily',
+        'four-times-daily': 'Four times daily',
+        'as-needed': 'As needed'
+    };
+    
+    // Check if required elements exist
+    if (!frequencyButtons.length || !frequencyInput || !timePickersContainer || !timeInputsContainer) {
+        return;
+    }
+
+    function createTimeInput(index, presetTime = '') {
+        const timeDiv = document.createElement('div');
+        timeDiv.className = 'col-6 col-md-3 mb-3';
+        timeDiv.innerHTML = `
+            <label for="medication_time_${index}" class="form-label fw-semibold">
+                Time ${index} <span class="text-danger">*</span>
+            </label>
+            <div class="input-group">
+                <span class="input-group-text">
+                    <i class="fas fa-clock text-muted"></i>
+                </span>
+                <input type="time" class="form-control medication-time" 
+                       name="medication_time_${index}" 
+                       id="medication_time_${index}" 
+                       value="${presetTime}"
+                       required>
+            </div>
+        `;
+        return timeDiv;
+    }
+
+    function updateTimeInputs(frequencyType, times) {
+        // Clear existing time inputs
+        timeInputsContainer.innerHTML = '';
+        
+        if (times > 0) {
+            timePickersContainer.style.display = 'block';
+            
+            // Get preset times for this frequency
+            const presetTimes = FREQUENCY_PRESETS[frequencyType] || [];
+            
+            // Create time inputs with presets
+            for (let i = 1; i <= times; i++) {
+                const presetTime = presetTimes[i - 1] || '';
+                const timeDiv = createTimeInput(i, presetTime);
+                timeInputsContainer.appendChild(timeDiv);
+            }
+            
+            // Add helpful text about presets
+            if (presetTimes.length > 0) {
+                const helpText = document.createElement('div');
+                helpText.className = 'col-12 mb-2';
+                helpText.innerHTML = `
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Preset times are automatically filled but can be edited as needed
+                    </small>
+                `;
+                timeInputsContainer.insertBefore(helpText, timeInputsContainer.firstChild);
+            }
+        } else {
+            // Hide time pickers for PRN (As Needed)
+            timePickersContainer.style.display = 'none';
+        }
+    }
+
+    // Add click handlers to frequency buttons
+    frequencyButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Remove active class from all buttons
+            frequencyButtons.forEach(btn => {
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-outline-primary');
+            });
+            
+            // Add active class to clicked button
+            this.classList.remove('btn-outline-primary');
+            this.classList.add('btn-primary');
+            
+            // Get frequency data
+            const frequencyType = this.getAttribute('data-frequency');
+            const times = parseInt(this.getAttribute('data-times'));
+            
+            // Update hidden frequency input
+            if (frequencyMap[frequencyType]) {
+                frequencyInput.value = frequencyMap[frequencyType];
+            }
+            
+            // Update time inputs with presets
+            updateTimeInputs(frequencyType, times);
+        });
+    });
+
+    // Auto-select "Once Daily" by default if no frequency is selected
+    const defaultButton = document.querySelector('.frequency-btn[data-frequency="once-daily"]');
+    if (defaultButton && !frequencyInput.value) {
+        defaultButton.click();
+    }
 }
 
 // Initialize on page load
@@ -211,4 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('name') && document.getElementById('medication-dropdown')) {
         initializeMedicationSearch('name', 'medication-dropdown');
     }
+    
+    // Initialize medication frequency functionality
+    initializeMedicationFrequency();
 });
