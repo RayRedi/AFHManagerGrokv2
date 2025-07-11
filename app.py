@@ -326,34 +326,41 @@ def home():
     total_residents = len(residents)
     alerts = []
     today = date.today()
+    soon_expire_days = 7  # Alert for items expiring within 7 days
+    soon_expire_date = today + timedelta(days=soon_expire_days)
+    
     # Chart data for meal trends (last 7 days)
     start_date = today - timedelta(days=7)
     end_date = today
     date_range = [start_date + timedelta(days=x) for x in range((end_date - start_date).days + 1)]
     meal_counts = {d.isoformat(): {'breakfast': 0, 'lunch': 0, 'dinner': 0} for d in date_range}
+    
     for resident in residents:
         food_intakes = FoodIntake.query.filter_by(resident_id=resident.id).filter(FoodIntake.date.between(start_date, end_date)).all()
-        meal_types = ['breakfast', 'lunch', 'dinner']
-        logged_meals = [food.meal_type for food in food_intakes]
-        for meal in meal_types:
-            if meal not in logged_meals:
-                alerts.append(f"Missing {meal} log for {resident.name}")
         for food in food_intakes:
             date_str = food.date.isoformat()
             if date_str in meal_counts:
                 meal_counts[date_str][food.meal_type] += 1
+        
+        # Check for expired and soon-to-expire documents
         documents = Document.query.filter_by(resident_id=resident.id).all()
         for doc in documents:
-            if doc.expiration_date and doc.expiration_date < today:
-                alerts.append(f"Expired document: {doc.name} for {resident.name}")
-                send_alert_email("Expired Document Alert", f"Document {doc.name} for {resident.name} expired on {doc.expiration_date}")
+            if doc.expiration_date:
+                if doc.expiration_date < today:
+                    alerts.append(f"Expired document: {doc.name} for {resident.name}")
+                    send_alert_email("Expired Document Alert", f"Document {doc.name} for {resident.name} expired on {doc.expiration_date}")
+                elif doc.expiration_date <= soon_expire_date:
+                    alerts.append(f"Document expiring soon: {doc.name} for {resident.name} (expires {doc.expiration_date})")
+        
+        # Check for expired and soon-to-expire medications
         medications = Medication.query.filter_by(resident_id=resident.id).all()
         for med in medications:
-            if med.frequency == 'Daily' and (not med.end_date or med.end_date >= today):
-                logs = MedicationLog.query.filter_by(medication_id=med.id, date=today).count()
-                if logs == 0:
-                    alerts.append(f"Missing dose for {med.name} for {resident.name}")
-                    send_alert_email("Missing Medication Alert", f"Missing dose for {med.name} for {resident.name} on {today}")
+            if med.end_date:
+                if med.end_date < today:
+                    alerts.append(f"Expired medication: {med.name} for {resident.name}")
+                    send_alert_email("Expired Medication Alert", f"Medication {med.name} for {resident.name} expired on {med.end_date}")
+                elif med.end_date <= soon_expire_date:
+                    alerts.append(f"Medication expiring soon: {med.name} for {resident.name} (expires {med.end_date})")
     chart_labels = [d.isoformat() for d in date_range]
     chart_data = {
         'breakfast': [meal_counts[d]['breakfast'] for d in chart_labels],
