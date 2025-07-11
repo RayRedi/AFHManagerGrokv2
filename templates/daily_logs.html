@@ -544,7 +544,7 @@ class DailyLogWizard {
                 formData.append('csrf_token', csrfToken);
             }
 
-            const response = await fetch(`/resident/{{ resident.id }}/logs`, {
+            const response = await fetch(`/resident/{{ resident.id }}/daily-log-submit`, {
                 method: 'POST',
                 body: formData
             });
