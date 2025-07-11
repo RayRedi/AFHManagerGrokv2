@@ -11,6 +11,13 @@ function debounce(func, wait) {
 function initializeMedicationSearch(inputId, dropdownId) {
     const searchInput = document.getElementById(inputId);
     const dropdown = document.getElementById(dropdownId);
+
+    // Exit early if required elements are missing
+    if (!searchInput || !dropdown) {
+        console.warn(`Autocomplete initialization skipped: Missing elements for inputId=${inputId}, dropdownId=${dropdownId}`);
+        return;
+    }
+
     const detailsDiv = document.getElementById('medication-details');
     const dosageInput = document.getElementById('dosage');
     const frequencyInput = document.getElementById('frequency');
@@ -49,20 +56,18 @@ function initializeMedicationSearch(inputId, dropdownId) {
 
     // Show dropdown
     function showDropdown() {
-        if (!dropdown) return;
         dropdown.innerHTML = '';
         selectedIndex = -1;
         if (currentMedications.length === 0) {
             hideDropdown();
             return;
         }
-        
-        // Add header
+
         const header = document.createElement('div');
         header.className = 'dropdown-header';
         header.innerHTML = `<i class="fas fa-search me-2"></i>Found ${currentMedications.length} medication${currentMedications.length !== 1 ? 's' : ''}`;
         dropdown.appendChild(header);
-        
+
         currentMedications.forEach((med, index) => {
             const item = document.createElement('div');
             item.className = 'dropdown-item medication-suggestion';
@@ -87,7 +92,6 @@ function initializeMedicationSearch(inputId, dropdownId) {
 
     // Hide dropdown
     function hideDropdown() {
-        if (!dropdown) return;
         dropdown.innerHTML = '';
         dropdown.style.display = 'none';
         selectedIndex = -1;
@@ -98,8 +102,7 @@ function initializeMedicationSearch(inputId, dropdownId) {
         const med = currentMedications[index];
         if (med) {
             searchInput.value = med.name;
-            
-            // Show medication details preview
+
             if (detailsDiv) {
                 detailsDiv.style.display = 'block';
                 const detailsContent = document.getElementById('details-content');
@@ -119,25 +122,23 @@ function initializeMedicationSearch(inputId, dropdownId) {
                     `;
                 }
             }
-            
-            // Auto-fill form fields
+
             if (dosageInput) dosageInput.value = med.dosage || '';
             if (frequencyInput) frequencyInput.value = med.frequency || '';
             if (notesInput) notesInput.value = med.notes || '';
             if (formInput) formInput.value = med.form || '';
             if (commonUsesInput) commonUsesInput.value = med.common_uses || '';
-            
-            // Add visual feedback
+
             searchInput.classList.add('is-valid');
             setTimeout(() => {
                 searchInput.classList.remove('is-valid');
             }, 2000);
-            
+
             hideDropdown();
         }
     }
 
-    // Clear medication details when input is cleared or changed significantly
+    // Clear medication details
     function clearMedicationDetails() {
         if (detailsDiv) {
             detailsDiv.style.display = 'none';
@@ -146,19 +147,18 @@ function initializeMedicationSearch(inputId, dropdownId) {
     }
 
     // Input event
-    if (searchInput) {
-        searchInput.addEventListener('input', (e) => {
-            const value = e.target.value;
-            if (value.length < 2) {
-                clearMedicationDetails();
-            }
-            searchMedications(value);
-        });
+    searchInput.addEventListener('input', (e) => {
+        const value = e.target.value;
+        if (value.length < 2) {
+            clearMedicationDetails();
+        }
+        searchMedications(value);
+    });
 
-        // Keyboard navigation
-        searchInput.addEventListener('keydown', (e) => {
-            const items = dropdown.getElementsByClassName('dropdown-item');
-            if (items.length === 0) return;
+    // Keyboard navigation
+    searchInput.addEventListener('keydown', (e) => {
+        const items = dropdown ? dropdown.getElementsByClassName('dropdown-item') : [];
+        if (!items || items.length === 0) return;
 
         if (e.key === 'ArrowDown') {
             e.preventDefault();
@@ -190,21 +190,21 @@ function initializeMedicationSearch(inputId, dropdownId) {
 
     // Click outside to close
     document.addEventListener('click', (e) => {
+        if (!searchInput || !dropdown) return; // Skip if elements are missing
         if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
             hideDropdown();
             if (detailsDiv) detailsDiv.innerHTML = '';
         }
     });
-    }
 }
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
-    // Initialize medication search for different forms
-    if (document.getElementById('med-search')) {
+    // Only initialize if required elements exist
+    if (document.getElementById('med-search') && document.getElementById('medication-dropdown-home')) {
         initializeMedicationSearch('med-search', 'medication-dropdown-home');
     }
-    if (document.getElementById('name')) {
+    if (document.getElementById('name') && document.getElementById('medication-dropdown')) {
         initializeMedicationSearch('name', 'medication-dropdown');
     }
 });
