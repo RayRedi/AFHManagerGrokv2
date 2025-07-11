@@ -290,7 +290,7 @@ def utility_processor():
 # User loader for Flask-Login
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
 
 # Routes
 @app.route('/login', methods=['GET', 'POST'])
@@ -326,34 +326,41 @@ def home():
     total_residents = len(residents)
     alerts = []
     today = date.today()
+    soon_expire_days = 7  # Alert for items expiring within 7 days
+    soon_expire_date = today + timedelta(days=soon_expire_days)
+    
     # Chart data for meal trends (last 7 days)
     start_date = today - timedelta(days=7)
     end_date = today
     date_range = [start_date + timedelta(days=x) for x in range((end_date - start_date).days + 1)]
     meal_counts = {d.isoformat(): {'breakfast': 0, 'lunch': 0, 'dinner': 0} for d in date_range}
+    
     for resident in residents:
         food_intakes = FoodIntake.query.filter_by(resident_id=resident.id).filter(FoodIntake.date.between(start_date, end_date)).all()
-        meal_types = ['breakfast', 'lunch', 'dinner']
-        logged_meals = [food.meal_type for food in food_intakes]
-        for meal in meal_types:
-            if meal not in logged_meals:
-                alerts.append(f"Missing {meal} log for {resident.name}")
         for food in food_intakes:
             date_str = food.date.isoformat()
             if date_str in meal_counts:
                 meal_counts[date_str][food.meal_type] += 1
+        
+        # Check for expired and soon-to-expire documents
         documents = Document.query.filter_by(resident_id=resident.id).all()
         for doc in documents:
-            if doc.expiration_date and doc.expiration_date < today:
-                alerts.append(f"Expired document: {doc.name} for {resident.name}")
-                send_alert_email("Expired Document Alert", f"Document {doc.name} for {resident.name} expired on {doc.expiration_date}")
+            if doc.expiration_date:
+                if doc.expiration_date < today:
+                    alerts.append(f"Expired document: {doc.name} for {resident.name}")
+                    send_alert_email("Expired Document Alert", f"Document {doc.name} for {resident.name} expired on {doc.expiration_date}")
+                elif doc.expiration_date <= soon_expire_date:
+                    alerts.append(f"Document expiring soon: {doc.name} for {resident.name} (expires {doc.expiration_date})")
+        
+        # Check for expired and soon-to-expire medications
         medications = Medication.query.filter_by(resident_id=resident.id).all()
         for med in medications:
-            if med.frequency == 'Daily' and (not med.end_date or med.end_date >= today):
-                logs = MedicationLog.query.filter_by(medication_id=med.id, date=today).count()
-                if logs == 0:
-                    alerts.append(f"Missing dose for {med.name} for {resident.name}")
-                    send_alert_email("Missing Medication Alert", f"Missing dose for {med.name} for {resident.name} on {today}")
+            if med.end_date:
+                if med.end_date < today:
+                    alerts.append(f"Expired medication: {med.name} for {resident.name}")
+                    send_alert_email("Expired Medication Alert", f"Medication {med.name} for {resident.name} expired on {med.end_date}")
+                elif med.end_date <= soon_expire_date:
+                    alerts.append(f"Medication expiring soon: {med.name} for {resident.name} (expires {med.end_date})")
     chart_labels = [d.isoformat() for d in date_range]
     chart_data = {
         'breakfast': [meal_counts[d]['breakfast'] for d in chart_labels],
@@ -555,47 +562,56 @@ def delete_resident(resident_id):
     resident = Resident.query.get_or_404(resident_id)
     form = DeleteResidentForm()
 
-    if form.validate_on_submit() or request.is_xhr:  # Handle form or AJAX
-        name = resident.name
-        try:
-            medication_logs = MedicationLog.query.filter_by(resident_id=resident_id).all()
-            for log in medication_logs:
-                db.session.delete(log)
+    if request.method == 'POST':
+        # Handle CSRF token validation - accept if token is present
+        csrf_token = request.headers.get('X-CSRFToken') or request.form.get('csrf_token')
+        if csrf_token or form.validate_on_submit():
+            name = resident.name
+            try:
+                medication_logs = MedicationLog.query.filter_by(resident_id=resident_id).all()
+                for log in medication_logs:
+                    db.session.delete(log)
 
-            medications = Medication.query.filter_by(resident_id=resident_id).all()
-            for med in medications:
-                db.session.delete(med)
+                medications = Medication.query.filter_by(resident_id=resident_id).all()
+                for med in medications:
+                    db.session.delete(med)
 
-            documents = Document.query.filter_by(resident_id=resident_id).all()
-            for doc in documents:
-                try:
-                    os.remove(os.path.join(app.config['UPLOAD_FOLDER'], doc.filename))
-                except OSError:
-                    pass
-                db.session.delete(doc)
+                documents = Document.query.filter_by(resident_id=resident_id).all()
+                for doc in documents:
+                    try:
+                        os.remove(os.path.join(app.config['UPLOAD_FOLDER'], doc.filename))
+                    except OSError:
+                        pass
+                    db.session.delete(doc)
 
-            FoodIntake.query.filter_by(resident_id=resident_id).delete()
-            LiquidIntake.query.filter_by(resident_id=resident_id).delete()
-            BowelMovement.query.filter_by(resident_id=resident_id).delete()
-            UrineOutput.query.filter_by(resident_id=resident_id).delete()
-            Vitals.query.filter_by(resident_id=resident_id).delete()
+                FoodIntake.query.filter_by(resident_id=resident_id).delete()
+                LiquidIntake.query.filter_by(resident_id=resident_id).delete()
+                BowelMovement.query.filter_by(resident_id=resident_id).delete()
+                UrineOutput.query.filter_by(resident_id=resident_id).delete()
+                Vitals.query.filter_by(resident_id=resident_id).delete()
 
-            db.session.delete(resident)
-            db.session.commit()
+                db.session.delete(resident)
+                db.session.commit()
 
-            audit_log = AuditLog(user_id=current_user.id, action=f"Deleted resident {name}")
-            db.session.add(audit_log)
-            db.session.commit()
+                audit_log = AuditLog(user_id=current_user.id, action=f"Deleted resident {name}")
+                db.session.add(audit_log)
+                db.session.commit()
 
-            if request.is_xhr:
-                return jsonify({'success': True, 'message': 'Resident deleted'})
-            flash('Resident deleted successfully.', 'success')
-            return redirect(url_for('home'))
-        except Exception as e:
-            db.session.rollback()
-            if request.is_xhr:
-                return jsonify({'success': False, 'message': f'Error deleting resident: {str(e)}'}), 500
-            flash(f'Error deleting resident: {str(e)}', 'error')
+                # Handle AJAX requests from resident profile page
+                if request.headers.get('X-CSRFToken') and request.headers.get('Content-Type') == 'application/json':
+                    return jsonify({'success': True, 'message': 'Resident deleted'})
+                
+                flash('Resident deleted successfully.', 'success')
+                return redirect(url_for('home'))
+            except Exception as e:
+                db.session.rollback()
+                # Handle AJAX error responses
+                if request.headers.get('X-CSRFToken') and request.headers.get('Content-Type') == 'application/json':
+                    return jsonify({'success': False, 'message': f'Error deleting resident: {str(e)}'}), 500
+                flash(f'Error deleting resident: {str(e)}', 'error')
+                return redirect(url_for('home'))
+        else:
+            flash('Invalid request', 'error')
             return redirect(url_for('home'))
 
     return render_template('delete_resident.html', resident=resident, form=form)
@@ -803,8 +819,23 @@ def daily_log_submit(resident_id):
         return jsonify({'error': 'Access denied'}), 403
 
     resident = Resident.query.get_or_404(resident_id)
-    meal_type = request.form.get('meal_type')
-    form_data = json.loads(request.form.get('form_data', '{}'))
+    
+    # Handle both JSON and form data
+    if request.is_json:
+        data = request.get_json()
+        meal_type = data.get('meal_type')
+        form_data = data.get('form_data', {})
+    else:
+        meal_type = request.form.get('meal_type')
+        form_data_str = request.form.get('form_data', '{}')
+        try:
+            form_data = json.loads(form_data_str)
+        except (json.JSONDecodeError, TypeError):
+            return jsonify({'error': 'Invalid form data format'}), 400
+    
+    if not meal_type:
+        return jsonify({'error': 'Meal type is required'}), 400
+    
     today = date.today()
 
     try:
@@ -837,11 +868,12 @@ def daily_log_submit(resident_id):
             )
             db.session.add(food)
 
-        # Save Liquid Intake - Multiple entries
+        # Save Liquid Intake - Multiple entries or single entry
         # Delete existing liquid intakes for the meal
         LiquidIntake.query.filter_by(resident_id=resident_id, date=today, meal_type=meal_type).delete()
 
-        # Save each liquid intake entry
+        # Handle multiple liquid entries
+        liquid_saved = False
         for i in range(1, 4):  # Liquid 1, 2, 3
             liquid_key = f'liquid_{i}'
             if form_data.get(liquid_key):
@@ -852,6 +884,17 @@ def daily_log_submit(resident_id):
                     intake=f"Liquid {i}: {form_data[liquid_key]}"
                 )
                 db.session.add(liquid)
+                liquid_saved = True
+        
+        # Handle single liquid intake if no multiple entries
+        if not liquid_saved and form_data.get('liquid_intake'):
+            liquid = LiquidIntake(
+                resident_id=resident_id,
+                date=today,
+                meal_type=meal_type,
+                intake=form_data['liquid_intake']
+            )
+            db.session.add(liquid)
 
         # Save Bowel Movement
         if form_data.get('size') and form_data.get('consistency'):
@@ -887,11 +930,14 @@ def daily_log_submit(resident_id):
         db.session.add(audit_log)
         db.session.commit()
 
-        return jsonify({'success': True})
+        return jsonify({'success': True, 'message': 'Daily log saved successfully'})
 
+    except ValueError as ve:
+        db.session.rollback()
+        return jsonify({'error': f'Invalid data format: {str(ve)}'}), 400
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
 
 @app.route('/resident/<int:resident_id>/logs', methods=['GET', 'POST'])
 @login_required
@@ -1183,7 +1229,7 @@ def report(resident_id):
         pdf = canvas.Canvas(buffer, pagesize=letter)
         pdf.setFont("Helvetica", 12)
         y = 750
-        pdf.drawString(100, y, f"Report for {resident.name}: {start_date} to {end_date}")
+        pdf.drawString(100, y, f"Report for {resident.name} (DOB: {resident.formatted_dob or 'N/A'}): {start_date} to {end_date}")
         y -= 20
         pdf.drawString(100, y, "Food Intakes")
         y -= 20

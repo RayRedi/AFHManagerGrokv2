@@ -80,6 +80,13 @@ class Resident(db.Model):
     def emergency_contact(self, value):
         self._emergency_contact = value
 
+    @property
+    def formatted_dob(self):
+        """Return DOB in 'Month Day, Year' format"""
+        if self.dob:
+            return self.dob.strftime('%B %d, %Y')
+        return None
+
 class Vitals(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     resident_id = db.Column(db.Integer, db.ForeignKey('resident.id'), nullable=False)

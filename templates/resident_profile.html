@@ -4,17 +4,19 @@
     <h1>{{ resident.name }}</h1>
     <div class="card">
         <div class="card-body">
-            <p><strong>DOB:</strong> {{ resident.dob }}</p>
+            <p><strong>DOB:</strong> {{ resident.formatted_dob or 'N/A' }}</p>
             <p><strong>Medical Info:</strong> {{ resident.medical_info or 'N/A' }}</p>
             <p><strong>Emergency Contact:</strong> {{ resident.emergency_contact or 'N/A' }}</p>
-            <a href="{{ url_for('daily_logs', resident_id=resident.id) }}" class="btn btn-primary">Daily Logs</a>
-            <a href="{{ url_for('report', resident_id=resident.id) }}" class="btn btn-primary">View Report</a>
-            {% if current_user.role == 'admin' %}
-                <a href="{{ url_for('medications', resident_id=resident.id) }}" class="btn btn-secondary">Medications</a>
-                <a href="{{ url_for('documents', resident_id=resident.id) }}" class="btn btn-secondary">Documents</a>
-                <a href="{{ url_for('edit_resident', resident_id=resident.id) }}" class="btn btn-secondary">Edit Resident</a>
-                <button onclick="deleteResident({{ resident.id }})" class="btn btn-danger">Delete Resident</button>
-            {% endif %}
+            <div class="action-buttons">
+                <a href="{{ url_for('daily_logs', resident_id=resident.id) }}" class="btn action-btn btn-primary">Daily Logs</a>
+                <a href="{{ url_for('report', resident_id=resident.id) }}" class="btn action-btn btn-primary">View Report</a>
+                {% if current_user.role == 'admin' %}
+                    <a href="{{ url_for('medications', resident_id=resident.id) }}" class="btn action-btn btn-primary">Medications</a>
+                    <a href="{{ url_for('documents', resident_id=resident.id) }}" class="btn action-btn btn-primary">Documents</a>
+                    <a href="{{ url_for('edit_resident', resident_id=resident.id) }}" class="btn action-btn btn-primary">Edit Resident</a>
+                    <button onclick="deleteResident({{ resident.id }})" class="btn action-btn btn-danger">Delete Resident</button>
+                {% endif %}
+            </div>
         </div>
     </div>
     {% if current_user.role == 'admin' %}
