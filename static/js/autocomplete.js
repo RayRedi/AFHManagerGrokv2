@@ -157,7 +157,8 @@ function initializeMedicationSearch(inputId, dropdownId) {
 
     // Keyboard navigation
     searchInput.addEventListener('keydown', (e) => {
-        const items = dropdown ? dropdown.getElementsByClassName('dropdown-item') : [];
+        if (!dropdown) return;
+        const items = dropdown.getElementsByClassName('dropdown-item');
         if (!items || items.length === 0) return;
 
         if (e.key === 'ArrowDown') {
@@ -173,7 +174,7 @@ function initializeMedicationSearch(inputId, dropdownId) {
             selectMedication(selectedIndex);
         } else if (e.key === 'Escape') {
             hideDropdown();
-            if (detailsDiv) detailsDiv.innerHTML = '';
+            if (detailsDiv) detailsDiv.style.display = 'none';
         }
     });
 
@@ -193,11 +194,10 @@ function initializeMedicationSearch(inputId, dropdownId) {
 
     // Click outside to close
     document.addEventListener('click', (e) => {
-        if (!searchInput || !dropdown) return; // Skip if elements are missing
-        if (!e.target) return; // Safety check
+        if (!searchInput || !dropdown || !e.target) return;
         if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
             hideDropdown();
-            if (detailsDiv) detailsDiv.innerHTML = '';
+            if (detailsDiv) detailsDiv.style.display = 'none';
         }
     });
 }

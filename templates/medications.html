@@ -320,60 +320,65 @@ document.addEventListener('DOMContentLoaded', function() {
         'as-needed': 'As needed'
     };
     
-    frequencyButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            // Remove active class from all buttons
-            frequencyButtons.forEach(btn => {
-                btn.classList.remove('btn-primary');
-                btn.classList.add('btn-outline-primary');
-            });
-            
-            // Add active class to clicked button
-            this.classList.remove('btn-outline-primary');
-            this.classList.add('btn-primary');
-            
-            // Update hidden frequency input
-            const frequency = this.dataset.frequency;
-            frequencyInput.value = frequencyMap[frequency];
-            
-            // Get number of times
-            const times = parseInt(this.dataset.times);
-            
-            // Clear previous time inputs
-            timeInputsContainer.innerHTML = '';
-            
-            if (times > 0) {
-                // Show time pickers container
-                timePickersContainer.style.display = 'block';
+    // Check if required elements exist before proceeding
+    if (frequencyButtons.length > 0 && frequencyInput && timePickersContainer && timeInputsContainer) {
+        frequencyButtons.forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault(); // Prevent form submission
                 
-                // Create time inputs
-                for (let i = 1; i <= times; i++) {
-                    const timeDiv = document.createElement('div');
-                    timeDiv.className = 'col-12 col-md-6 mb-3';
+                // Remove active class from all buttons
+                frequencyButtons.forEach(btn => {
+                    btn.classList.remove('btn-primary');
+                    btn.classList.add('btn-outline-primary');
+                });
+                
+                // Add active class to clicked button
+                this.classList.remove('btn-outline-primary');
+                this.classList.add('btn-primary');
+                
+                // Update hidden frequency input
+                const frequency = this.dataset.frequency;
+                frequencyInput.value = frequencyMap[frequency];
+                
+                // Get number of times
+                const times = parseInt(this.dataset.times);
+                
+                // Clear previous time inputs
+                timeInputsContainer.innerHTML = '';
+                
+                if (times > 0) {
+                    // Show time pickers container
+                    timePickersContainer.style.display = 'block';
                     
-                    timeDiv.innerHTML = `
-                        <label class="form-label fw-semibold">Time ${i}</label>
-                        <div class="input-group">
-                            <span class="input-group-text">
-                                <i class="fas fa-clock text-muted"></i>
-                            </span>
-                            <input type="time" class="form-control medication-time" name="medication_time_${i}" id="medication_time_${i}">
-                        </div>
-                    `;
-                    
-                    timeInputsContainer.appendChild(timeDiv);
+                    // Create time inputs
+                    for (let i = 1; i <= times; i++) {
+                        const timeDiv = document.createElement('div');
+                        timeDiv.className = 'col-12 col-md-6 mb-3';
+                        
+                        timeDiv.innerHTML = `
+                            <label class="form-label fw-semibold">Time ${i}</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-clock text-muted"></i>
+                                </span>
+                                <input type="time" class="form-control medication-time" name="medication_time_${i}" id="medication_time_${i}" required>
+                            </div>
+                        `;
+                        
+                        timeInputsContainer.appendChild(timeDiv);
+                    }
+                } else {
+                    // Hide time pickers for PRN (As Needed)
+                    timePickersContainer.style.display = 'none';
                 }
-            } else {
-                // Hide time pickers for PRN
-                timePickersContainer.style.display = 'none';
-            }
+            });
         });
-    });
+    }
 
     // Add form validation feedback
-    const form = document.querySelector('form[action*="medications"]');
-    if (form) {
-        form.addEventListener('submit', function(e) {
+    const medicationForm = document.querySelector('form[action*="medications"]');
+    if (medicationForm) {
+        medicationForm.addEventListener('submit', function(e) {
             const medicationName = document.getElementById('name');
             if (medicationName && medicationName.value.trim().length < 2) {
                 e.preventDefault();
@@ -409,12 +414,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Auto-resize textarea fields
     const textareas = document.querySelectorAll('textarea');
-    textareas.forEach(textarea => {
-        textarea.addEventListener('input', function() {
-            this.style.height = 'auto';
-            this.style.height = (this.scrollHeight) + 'px';
+    if (textareas.length > 0) {
+        textareas.forEach(textarea => {
+            textarea.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = (this.scrollHeight) + 'px';
+            });
         });
-    });
+    }
 });
 </script>
 {% endblock %}
