@@ -103,14 +103,6 @@
                         {{ medication_form.frequency(class="form-control", id="frequency", style="display: none;") }}
                         
                         <!-- Dynamic time pickers container -->
-                        <div id="time-pickers-container" style="display: none;">
-                            <label class="form-label fw-semibold mb-2">
-                                <i class="fas fa-clock me-2"></i>Administration Times
-                            </label>
-                            <div class="row" id="time-inputs">
-                                <!-- Time inputs will be dynamically generated here -->
-                            </div>
-                        </div>
                         <div id="time-pickers-container" class="time-pickers" style="display: none;">
                             <label class="form-label fw-semibold">Administration Times</label>
                             <div id="time-inputs" class="row">
@@ -305,13 +297,42 @@
 <script src="{{ url_for('static', filename='js/autocomplete.js') }}"></script>
 {% endblock %}
 
-{% block extra_js %<script>
+{% block extra_js %}
+<script>
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize medication autocomplete
     if (document.getElementById('name') && document.getElementById('medication-dropdown')) {
         initializeMedicationSearch('name', 'medication-dropdown');
     }
-}); clicked button
+
+    // Frequency button functionality
+    const frequencyButtons = document.querySelectorAll('.frequency-btn');
+    const frequencyInput = document.getElementById('frequency');
+    const timePickersContainer = document.getElementById('time-pickers-container');
+    const timeInputsContainer = document.getElementById('time-inputs');
+    
+    // Frequency button mappings
+    const frequencyMap = {
+        'once-daily': 'Daily',
+        'twice-daily': 'Twice daily',
+        'three-times-daily': 'Three times daily',
+        'four-times-daily': 'Four times daily',
+        'as-needed': 'As needed'
+    };
+    
+    // Check if required elements exist before proceeding
+    if (frequencyButtons.length > 0 && frequencyInput && timePickersContainer && timeInputsContainer) {
+        frequencyButtons.forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault(); // Prevent form submission
+                
+                // Remove active class from all buttons
+                frequencyButtons.forEach(btn => {
+                    btn.classList.remove('btn-primary');
+                    btn.classList.add('btn-outline-primary');
+                });
+                
+                // Add active class to clicked button
                 this.classList.remove('btn-outline-primary');
                 this.classList.add('btn-primary');
                 
