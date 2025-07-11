@@ -263,39 +263,50 @@ class MedicationWizard {
             case 2:
                 return `
                     <h4><span class="step-number">2</span>Dosage & Schedule</h4>
-                    <div class="row">
-                        <div class="col-12 col-md-6 mb-3">
-                            <label for="wizard-dosage" class="form-label fw-semibold">
-                                Dosage <span class="text-muted">(optional)</span>
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="fas fa-pills text-muted"></i>
-                                </span>
-                                <input type="text" class="form-control" id="wizard-dosage" 
-                                       placeholder="e.g., 10 mg, 1 tablet">
-                            </div>
-                            <small class="text-muted">Amount per dose</small>
+                    <div class="mb-3">
+                        <label for="wizard-dosage" class="form-label fw-semibold">
+                            Dosage <span class="text-muted">(optional)</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-pills text-muted"></i>
+                            </span>
+                            <input type="text" class="form-control" id="wizard-dosage" 
+                                   placeholder="e.g., 10 mg, 1 tablet">
                         </div>
-                        <div class="col-12 col-md-6 mb-3">
-                            <label for="wizard-frequency" class="form-label fw-semibold">
-                                Frequency <span class="text-muted">(optional)</span>
-                            </label>
-                            <input type="text" class="form-control" id="wizard-frequency" 
-                                   placeholder="e.g., Daily, Twice daily">
-                            <small class="text-muted">How often to take</small>
-                        </div>
+                        <small class="text-muted">Amount per dose</small>
                     </div>
                     
-                    <!-- Frequency Presets -->
+                    <!-- Frequency Selection with Time Presets -->
                     <div class="mb-4">
-                        <label class="form-label fw-semibold">Quick Frequency Selection</label>
-                        <div class="frequency-buttons">
-                            <button type="button" class="btn btn-outline-primary frequency-btn" data-frequency="Daily">Daily</button>
-                            <button type="button" class="btn btn-outline-primary frequency-btn" data-frequency="Twice daily">Twice Daily</button>
-                            <button type="button" class="btn btn-outline-primary frequency-btn" data-frequency="Three times daily">3x Daily</button>
-                            <button type="button" class="btn btn-outline-primary frequency-btn" data-frequency="As needed">As Needed</button>
+                        <label class="form-label fw-semibold">
+                            Frequency & Times <span class="text-danger">*</span>
+                        </label>
+                        <div class="frequency-buttons mb-3">
+                            <button type="button" class="btn btn-outline-primary frequency-btn" 
+                                    data-frequency="once-daily" data-times="1">Once Daily</button>
+                            <button type="button" class="btn btn-outline-primary frequency-btn" 
+                                    data-frequency="twice-daily" data-times="2">Twice Daily (BID)</button>
+                            <button type="button" class="btn btn-outline-primary frequency-btn" 
+                                    data-frequency="three-times-daily" data-times="3">Three Times Daily (TID)</button>
+                            <button type="button" class="btn btn-outline-primary frequency-btn" 
+                                    data-frequency="four-times-daily" data-times="4">Four Times Daily (QID)</button>
+                            <button type="button" class="btn btn-outline-primary frequency-btn" 
+                                    data-frequency="as-needed" data-times="0">As Needed (PRN)</button>
                         </div>
+                        
+                        <!-- Time Pickers Container -->
+                        <div id="wizard-time-pickers-container" class="time-pickers" style="display: none;">
+                            <h6 class="fw-semibold mb-3">
+                                <i class="fas fa-clock me-2"></i>Administration Times
+                            </h6>
+                            <div class="row" id="wizard-time-inputs">
+                                <!-- Time inputs will be populated by JavaScript -->
+                            </div>
+                        </div>
+                        
+                        <!-- Hidden frequency input for form submission -->
+                        <input type="hidden" id="wizard-frequency" name="frequency">
                     </div>
 
                     
@@ -382,18 +393,23 @@ class MedicationWizard {
                 if (this.formData.dosage) document.getElementById('wizard-dosage').value = this.formData.dosage;
                 if (this.formData.frequency) document.getElementById('wizard-frequency').value = this.formData.frequency;
                 
-                // Setup frequency button handlers
-                document.querySelectorAll('.frequency-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        document.querySelectorAll('.frequency-btn').forEach(b => {
-                            b.classList.remove('btn-primary');
-                            b.classList.add('btn-outline-primary');
-                        });
-                        e.target.classList.remove('btn-outline-primary');
-                        e.target.classList.add('btn-primary');
-                        document.getElementById('wizard-frequency').value = e.target.dataset.frequency;
-                    });
-                });
+                // Initialize frequency and time picker functionality
+                this.initializeWizardFrequency();
+                
+                // Restore selected frequency if exists
+                if (this.formData.selectedFrequency) {
+                    const selectedBtn = document.querySelector(`[data-frequency="${this.formData.selectedFrequency}"]`);
+                    if (selectedBtn) {
+                        selectedBtn.click();
+                        // Restore time values
+                        if (this.formData.medicationTimes) {
+                            this.formData.medicationTimes.forEach((time, index) => {
+                                const timeInput = document.getElementById(`wizard-medication_time_${index + 1}`);
+                                if (timeInput) timeInput.value = time;
+                            });
+                        }
+                    }
+                }
                 break;
             case 3:
                 if (this.formData.start_date) document.getElementById('wizard-start-date').value = this.formData.start_date;
@@ -418,6 +434,16 @@ class MedicationWizard {
             case 2:
                 this.formData.dosage = document.getElementById('wizard-dosage').value;
                 this.formData.frequency = document.getElementById('wizard-frequency').value;
+                
+                // Save selected frequency type and times
+                const selectedFrequencyBtn = document.querySelector('.frequency-btn.btn-primary');
+                if (selectedFrequencyBtn) {
+                    this.formData.selectedFrequency = selectedFrequencyBtn.dataset.frequency;
+                }
+                
+                // Save medication times
+                const timeInputs = document.querySelectorAll('.wizard-medication-time');
+                this.formData.medicationTimes = Array.from(timeInputs).map(input => input.value);
                 break;
             case 3:
                 this.formData.start_date = document.getElementById('wizard-start-date').value;
@@ -450,6 +476,12 @@ class MedicationWizard {
                     <span class="${this.formData.frequency ? 'text-dark' : 'text-muted'}">${this.formData.frequency || 'Not specified'}</span>
                 </div>
                 <div class="col-md-6">
+                    <strong>Administration Times:</strong><br>
+                    <span class="${this.formData.medicationTimes && this.formData.medicationTimes.length ? 'text-dark' : 'text-muted'}">
+                        ${this.formData.medicationTimes && this.formData.medicationTimes.length ? 
+                          this.formData.medicationTimes.filter(time => time).join(', ') : 
+                          'Not specified'}
+                    </span>
                 </div>
             </div>
             <hr>
@@ -542,6 +574,16 @@ class MedicationWizard {
             formData.append('common_uses', this.formData.common_uses || '');
             formData.append('start_date', this.formData.start_date);
             formData.append('end_date', this.formData.end_date);
+            
+            // Add medication times
+            if (this.formData.medicationTimes && this.formData.medicationTimes.length) {
+                this.formData.medicationTimes.forEach((time, index) => {
+                    if (time) {
+                        formData.append(`medication_time_${index + 1}`, time);
+                    }
+                });
+            }
+            
             formData.append('add_medication', '1');
 
             const response = await fetch(window.location.href, {
@@ -559,6 +601,110 @@ class MedicationWizard {
         } catch (error) {
             console.error('Error:', error);
             alert('Error saving medication. Please try again.');
+        }
+    }
+
+    initializeWizardFrequency() {
+        const frequencyButtons = document.querySelectorAll('.frequency-btn');
+        const frequencyInput = document.getElementById('wizard-frequency');
+        const timePickersContainer = document.getElementById('wizard-time-pickers-container');
+        const timeInputsContainer = document.getElementById('wizard-time-inputs');
+        
+        // Frequency presets with times
+        const frequencyPresets = {
+            'once-daily': { label: 'Daily', times: ['07:00'] },
+            'twice-daily': { label: 'Twice daily', times: ['07:00', '19:00'] },
+            'three-times-daily': { label: 'Three times daily', times: ['07:00', '13:00', '19:00'] },
+            'four-times-daily': { label: 'Four times daily', times: ['07:00', '12:00', '16:00', '20:00'] },
+            'as-needed': { label: 'As needed', times: [] }
+        };
+
+        function createTimeInput(index, presetTime = '') {
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'col-6 col-md-3 mb-3';
+            timeDiv.innerHTML = `
+                <label for="wizard-medication_time_${index}" class="form-label fw-semibold">
+                    Time ${index} <span class="text-danger">*</span>
+                </label>
+                <div class="input-group">
+                    <span class="input-group-text">
+                        <i class="fas fa-clock text-muted"></i>
+                    </span>
+                    <input type="time" class="form-control wizard-medication-time" 
+                           name="medication_time_${index}" 
+                           id="wizard-medication_time_${index}" 
+                           value="${presetTime}"
+                           required>
+                </div>
+            `;
+            return timeDiv;
+        }
+
+        function updateTimeInputs(frequencyType) {
+            // Clear existing time inputs
+            timeInputsContainer.innerHTML = '';
+            
+            const preset = frequencyPresets[frequencyType];
+            const times = preset.times;
+            
+            if (times.length > 0) {
+                timePickersContainer.style.display = 'block';
+                
+                // Create time inputs with presets
+                times.forEach((presetTime, index) => {
+                    const timeDiv = createTimeInput(index + 1, presetTime);
+                    timeInputsContainer.appendChild(timeDiv);
+                });
+                
+                // Add helpful text about presets
+                const helpText = document.createElement('div');
+                helpText.className = 'col-12 mb-2';
+                helpText.innerHTML = `
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Preset times are automatically filled but can be edited as needed
+                    </small>
+                `;
+                timeInputsContainer.insertBefore(helpText, timeInputsContainer.firstChild);
+            } else {
+                // Hide time pickers for PRN (As Needed)
+                timePickersContainer.style.display = 'none';
+            }
+        }
+
+        // Add click handlers to frequency buttons
+        frequencyButtons.forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Remove active class from all buttons
+                frequencyButtons.forEach(btn => {
+                    btn.classList.remove('btn-primary');
+                    btn.classList.add('btn-outline-primary');
+                });
+                
+                // Add active class to clicked button
+                this.classList.remove('btn-outline-primary');
+                this.classList.add('btn-primary');
+                
+                // Get frequency data
+                const frequencyType = this.getAttribute('data-frequency');
+                const preset = frequencyPresets[frequencyType];
+                
+                // Update hidden frequency input
+                if (preset) {
+                    frequencyInput.value = preset.label;
+                }
+                
+                // Update time inputs with presets
+                updateTimeInputs(frequencyType);
+            });
+        });
+
+        // Auto-select "Once Daily" by default if no frequency is selected
+        const defaultButton = document.querySelector('.frequency-btn[data-frequency="once-daily"]');
+        if (defaultButton && !frequencyInput.value) {
+            defaultButton.click();
         }
     }
 
