@@ -583,3 +583,17 @@ body {
 .dropdown-item:last-child {
     border-bottom: none;
 }
+
+/* General Body and Layout */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+    color: #333;
+}
+
+/* Resident Card Hover Effect */
+.resident-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
+    transition: all 0.3s ease;
+}
