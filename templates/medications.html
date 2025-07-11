@@ -98,10 +98,10 @@
                                 As Needed (PRN)
                             </button>
                         </div>
-                        
+
                         <!-- Hidden input to store the selected frequency -->
                         {{ medication_form.frequency(class="form-control", id="frequency", style="display: none;") }}
-                        
+
                         <!-- Dynamic time pickers container -->
                         <div id="time-pickers-container" class="time-pickers" style="display: none;">
                             <label class="form-label fw-semibold">Administration Times</label>
@@ -109,7 +109,7 @@
                                 <!-- Time inputs will be dynamically added here -->
                             </div>
                         </div>
-                        
+
                         <small class="text-muted">Select how often to take this medication</small>
                     </div>
                 </div>
@@ -305,75 +305,8 @@ document.addEventListener('DOMContentLoaded', function() {
         initializeMedicationSearch('name', 'medication-dropdown');
     }
 
-    // Frequency button functionality
-    const frequencyButtons = document.querySelectorAll('.frequency-btn');
-    const frequencyInput = document.getElementById('frequency');
-    const timePickersContainer = document.getElementById('time-pickers-container');
-    const timeInputsContainer = document.getElementById('time-inputs');
-    
-    // Frequency button mappings
-    const frequencyMap = {
-        'once-daily': 'Daily',
-        'twice-daily': 'Twice daily',
-        'three-times-daily': 'Three times daily',
-        'four-times-daily': 'Four times daily',
-        'as-needed': 'As needed'
-    };
-    
-    // Check if required elements exist before proceeding
-    if (frequencyButtons.length > 0 && frequencyInput && timePickersContainer && timeInputsContainer) {
-        frequencyButtons.forEach(button => {
-            button.addEventListener('click', function(e) {
-                e.preventDefault(); // Prevent form submission
-                
-                // Remove active class from all buttons
-                frequencyButtons.forEach(btn => {
-                    btn.classList.remove('btn-primary');
-                    btn.classList.add('btn-outline-primary');
-                });
-                
-                // Add active class to clicked button
-                this.classList.remove('btn-outline-primary');
-                this.classList.add('btn-primary');
-                
-                // Update hidden frequency input
-                const frequency = this.dataset.frequency;
-                frequencyInput.value = frequencyMap[frequency];
-                
-                // Get number of times
-                const times = parseInt(this.dataset.times);
-                
-                // Clear previous time inputs
-                timeInputsContainer.innerHTML = '';
-                
-                if (times > 0) {
-                    // Show time pickers container
-                    timePickersContainer.style.display = 'block';
-                    
-                    // Create time inputs
-                    for (let i = 1; i <= times; i++) {
-                        const timeDiv = document.createElement('div');
-                        timeDiv.className = 'col-12 col-md-6 mb-3';
-                        
-                        timeDiv.innerHTML = `
-                            <label class="form-label fw-semibold">Time ${i}</label>
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="fas fa-clock text-muted"></i>
-                                </span>
-                                <input type="time" class="form-control medication-time" name="medication_time_${i}" id="medication_time_${i}" required>
-                            </div>
-                        `;
-                        
-                        timeInputsContainer.appendChild(timeDiv);
-                    }
-                } else {
-                    // Hide time pickers for PRN (As Needed)
-                    timePickersContainer.style.display = 'none';
-                }
-            });
-        });
-    }
+    // Frequency functionality is now handled in autocomplete.js
+    // This ensures consistency across all pages that use medication forms
 
     // Add form validation feedback
     const medicationForm = document.querySelector('form[action*="medications"]');
