@@ -88,7 +88,7 @@ class Medication(db.Model):
     frequency = db.Column(db.String(50))
     _notes = db.Column(EncryptedText)
     start_date = db.Column(db.Date)
-    end_date = db.Column(db.Date)
+    expiration_date = db.Column(db.Date)
     form = db.Column(db.String(50))
     _common_uses = db.Column(EncryptedText)
 
@@ -237,7 +237,7 @@ class MedicationForm(FlaskForm):
     form = StringField('Form', validators=[Length(max=50)])
     common_uses = TextAreaField('Common Uses')
     start_date = DateField('Start Date', validators=[DataRequired()])
-    end_date = DateField('Expiration Date', validators=[DataRequired()])
+    expiration_date = DateField('Expiration Date', validators=[DataRequired()])
     submit = SubmitField('Save Medication')
 
 class MedicationLogForm(FlaskForm):
@@ -358,12 +358,12 @@ def home():
         # Check for expired and soon-to-expire medications
         medications = Medication.query.filter_by(resident_id=resident.id).all()
         for med in medications:
-            if med.end_date:
-                if med.end_date < today:
+            if med.expiration_date:
+                if med.expiration_date < today:
                     alerts.append(f"Expired medication: {med.name} for {resident.name}")
-                    send_alert_email("Expired Medication Alert", f"Medication {med.name} for {resident.name} expired on {med.end_date}")
-                elif med.end_date <= soon_expire_date:
-                    alerts.append(f"Medication expiring soon: {med.name} for {resident.name} (expires {med.end_date})")
+                    send_alert_email("Expired Medication Alert", f"Medication {med.name} for {resident.name} expired on {med.expiration_date}")
+                elif med.expiration_date <= soon_expire_date:
+                    alerts.append(f"Medication expiring soon: {med.name} for {resident.name} (expires {med.expiration_date})")
     chart_labels = [d.isoformat() for d in date_range]
     chart_data = {
         'breakfast': [meal_counts[d]['breakfast'] for d in chart_labels],
@@ -1069,12 +1069,12 @@ def medications(resident_id):
             form = sanitize_input(medication_form.form.data)
             common_uses = sanitize_input(medication_form.common_uses.data)
             start_date = medication_form.start_date.data
-            end_date = medication_form.end_date.data
+            expiration_date = medication_form.expiration_date.data
             if not name:
                 flash('Medication name is required')
                 return redirect(url_for('medications', resident_id=resident_id))
             new_med = Medication(resident_id=resident_id, name=name, dosage=dosage, frequency=frequency,
-                                 notes=notes, form=form, common_uses=common_uses, start_date=start_date, end_date=end_date)
+                                 notes=notes, form=form, common_uses=common_uses, start_date=start_date, expiration_date=expiration_date)
             db.session.add(new_med)
             # Add to MedicationCatalog if not already present
             if not MedicationCatalog.query.filter_by(name=name).first():
@@ -1494,33 +1494,63 @@ if __name__ == '__main__':
         db.session.commit()
         print("Medication sync complete!")
 
-        # Migrate end_date to expiration_date column if needed
+        # Fix medication table column name issue
         try:
-            # Test if expiration_date column exists
-            db.session.execute("SELECT expiration_date FROM medication LIMIT 1")
-            print("expiration_date column already exists")
-        except Exception as e:
-            if "no such column" in str(e):
-                print("Migrating medication table to use expiration_date...")
-                try:
-                    # Check if end_date column exists
-                    try:
-                        db.session.execute("SELECT end_date FROM medication LIMIT 1")
-                        # end_date exists, rename it to expiration_date
-                        print("Renaming end_date to expiration_date...")
-                        db.session.execute("ALTER TABLE medication RENAME COLUMN end_date TO expiration_date")
-                        db.session.commit()
-                        print("Successfully renamed end_date to expiration_date!")
-                    except:
-                        # end_date doesn't exist, create expiration_date
-                        print("Adding expiration_date column...")
-                        db.session.execute("ALTER TABLE medication ADD COLUMN expiration_date DATE")
-                        db.session.commit()
-                        print("expiration_date column added successfully!")
-                except Exception as alter_error:
-                    print(f"Error updating medication table: {alter_error}")
+            # First check what columns exist in the medication table
+            result = db.session.execute("PRAGMA table_info(medication)").fetchall()
+            columns = [row[1] for row in result]  # Column names are in index 1
+            
+            if 'end_date' in columns and 'expiration_date' not in columns:
+                # Rename end_date to expiration_date
+                print("Renaming end_date to expiration_date...")
+                db.session.execute("ALTER TABLE medication RENAME COLUMN end_date TO expiration_date")
+                db.session.commit()
+                print("Successfully renamed end_date to expiration_date!")
+            elif 'expiration_date' not in columns:
+                # Add expiration_date column
+                print("Adding expiration_date column...")
+                db.session.execute("ALTER TABLE medication ADD COLUMN expiration_date DATE")
+                db.session.commit()
+                print("expiration_date column added successfully!")
             else:
-                print(f"Unexpected error: {e}")
+                print("Medication table is already up to date")
+        except Exception as e:
+            print(f"Error updating medication table: {e}")
+            # If there's still an issue, try to recreate the table
+            try:
+                print("Attempting to fix medication table structure...")
+                db.session.execute("""
+                    CREATE TABLE IF NOT EXISTS medication_new (
+                        id INTEGER PRIMARY KEY,
+                        resident_id INTEGER NOT NULL,
+                        name VARCHAR(100) NOT NULL,
+                        dosage VARCHAR(50),
+                        frequency VARCHAR(50),
+                        _notes TEXT,
+                        start_date DATE,
+                        expiration_date DATE,
+                        form VARCHAR(50),
+                        _common_uses TEXT,
+                        FOREIGN KEY (resident_id) REFERENCES resident(id)
+                    )
+                """)
+                
+                # Copy data from old table if it exists
+                db.session.execute("""
+                    INSERT INTO medication_new (id, resident_id, name, dosage, frequency, _notes, start_date, expiration_date, form, _common_uses)
+                    SELECT id, resident_id, name, dosage, frequency, _notes, start_date, 
+                           COALESCE(expiration_date, end_date) as expiration_date, form, _common_uses
+                    FROM medication
+                """)
+                
+                # Drop old table and rename new one
+                db.session.execute("DROP TABLE medication")
+                db.session.execute("ALTER TABLE medication_new RENAME TO medication")
+                db.session.commit()
+                print("Medication table structure fixed!")
+            except Exception as fix_error:
+                print(f"Error fixing medication table: {fix_error}")
+                db.session.rollback()
 
     import os
     port = int(os.environ.get('PORT', 8080))
