@@ -128,37 +128,6 @@
                     <div class="card card-body bg-light">
                         <div class="row">
                             <div class="col-12 col-md-6 mb-3">
-                                <label for="form" class="form-label fw-semibold">Form</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">
-                                        <i class="fas fa-capsules text-muted"></i>
-                                    </span>
-                                    {{ medication_form.form(class="form-control", id="form", placeholder="e.g., Tablet, Capsule, Liquid") }}
-                                </div>
-                            </div>
-                            <div class="col-12 col-md-6 mb-3">
-                                <label for="common_uses" class="form-label fw-semibold">Condition/Use</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">
-                                        <i class="fas fa-heartbeat text-muted"></i>
-                                    </span>
-                                    {{ medication_form.common_uses(class="form-control", id="common_uses", placeholder="e.g., High blood pressure, Diabetes") }}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="notes" class="form-label fw-semibold">Special Instructions</label>
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="fas fa-sticky-note text-muted"></i>
-                                </span>
-                                {{ medication_form.notes(class="form-control", rows="3", placeholder="e.g., Take with food, Monitor blood pressure") }}
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-12 col-md-6 mb-3">
                                 <label for="start_date" class="form-label fw-semibold">
                                     Start Date <span class="text-danger">*</span>
                                 </label>
