@@ -26,9 +26,7 @@
                 <div class="step-indicators">
                     <span class="badge bg-secondary me-1">Vitals</span>
                     <span class="badge bg-secondary me-1">Food</span>
-                    <span class="badge bg-secondary me-1">Liquid 1</span>
-                    <span class="badge bg-secondary me-1">Liquid 2</span>
-                    <span class="badge bg-secondary me-1">Liquid 3</span>
+                    <span class="badge bg-secondary me-1">Liquids</span>
                     <span class="badge bg-secondary me-1">Bowel</span>
                     <span class="badge bg-secondary">Urine</span>
                 </div>
@@ -51,9 +49,7 @@
                 </div>
                 <div class="step-indicators">
                     <span class="badge bg-secondary me-1">Food</span>
-                    <span class="badge bg-secondary me-1">Liquid 1</span>
-                    <span class="badge bg-secondary me-1">Liquid 2</span>
-                    <span class="badge bg-secondary me-1">Liquid 3</span>
+                    <span class="badge bg-secondary me-1">Liquids</span>
                     <span class="badge bg-secondary me-1">Bowel</span>
                     <span class="badge bg-secondary">Urine</span>
                 </div>
@@ -76,9 +72,7 @@
                 </div>
                 <div class="step-indicators">
                     <span class="badge bg-secondary me-1">Food</span>
-                    <span class="badge bg-secondary me-1">Liquid 1</span>
-                    <span class="badge bg-secondary me-1">Liquid 2</span>
-                    <span class="badge bg-secondary me-1">Liquid 3</span>
+                    <span class="badge bg-secondary me-1">Liquids</span>
                     <span class="badge bg-secondary me-1">Bowel</span>
                     <span class="badge bg-secondary">Urine</span>
                 </div>
@@ -136,27 +130,21 @@ class DailyLogWizard {
             'breakfast': [
                 { id: 1, name: 'Vitals', required: false },
                 { id: 2, name: 'Food Intake', required: true },
-                { id: 3, name: 'Liquid 1', required: true },
-                { id: 4, name: 'Liquid 2', required: true },
-                { id: 5, name: 'Liquid 3', required: true },
-                { id: 6, name: 'Bowel Movement', required: true },
-                { id: 7, name: 'Urine Output', required: true }
+                { id: 3, name: 'Liquids', required: true },
+                { id: 4, name: 'Bowel Movement', required: true },
+                { id: 5, name: 'Urine Output', required: true }
             ],
             'lunch': [
-                { id: 2, name: 'Food Intake', required: true },
-                { id: 3, name: 'Liquid 1', required: true },
-                { id: 4, name: 'Liquid 2', required: true },
-                { id: 5, name: 'Liquid 3', required: true },
-                { id: 6, name: 'Bowel Movement', required: true },
-                { id: 7, name: 'Urine Output', required: true }
+                { id: 1, name: 'Food Intake', required: true },
+                { id: 2, name: 'Liquids', required: true },
+                { id: 3, name: 'Bowel Movement', required: true },
+                { id: 4, name: 'Urine Output', required: true }
             ],
             'dinner': [
-                { id: 2, name: 'Food Intake', required: true },
-                { id: 3, name: 'Liquid 1', required: true },
-                { id: 4, name: 'Liquid 2', required: true },
-                { id: 5, name: 'Liquid 3', required: true },
-                { id: 6, name: 'Bowel Movement', required: true },
-                { id: 7, name: 'Urine Output', required: true }
+                { id: 1, name: 'Food Intake', required: true },
+                { id: 2, name: 'Liquids', required: true },
+                { id: 3, name: 'Bowel Movement', required: true },
+                { id: 4, name: 'Urine Output', required: true }
             ]
         };
     }
@@ -229,26 +217,33 @@ class DailyLogWizard {
                     </div>
                 `;
                 break;
-            case 3: // Liquid 1
-            case 4: // Liquid 2  
-            case 5: // Liquid 3
-                const liquidNum = step.id - 2;
+            case 3: // Liquids
                 html += `
                     <div class="mb-3">
-                        <label for="liquid${liquidNum}_type" class="form-label">Liquid Type</label>
-                        <input type="text" class="form-control" id="liquid${liquidNum}_type" value="${this.formData[`liquid${liquidNum}_type`] || ''}">
+                        <p>Liquid 1:</p>
+                        <button type="button" class="btn btn-outline-primary liquid1-btn ${this.formData.liquid1 === 'Yes' ? 'active' : ''}" data-value="Yes">Yes</button>
+                        <button type="button" class="btn btn-outline-primary liquid1-btn ${this.formData.liquid1 === 'No' ? 'active' : ''}" data-value="No">No</button>
+                        <input type="hidden" id="liquid1" value="${this.formData.liquid1 || ''}">
                     </div>
                     <div class="mb-3">
-                        <label for="liquid${liquidNum}_amount" class="form-label">Amount</label>
-                        <input type="text" class="form-control" id="liquid${liquidNum}_amount" value="${this.formData[`liquid${liquidNum}_amount`] || ''}">
+                        <p>Liquid 2:</p>
+                        <button type="button" class="btn btn-outline-primary liquid2-btn ${this.formData.liquid2 === 'Yes' ? 'active' : ''}" data-value="Yes">Yes</button>
+                        <button type="button" class="btn btn-outline-primary liquid2-btn ${this.formData.liquid2 === 'No' ? 'active' : ''}" data-value="No">No</button>
+                        <input type="hidden" id="liquid2" value="${this.formData.liquid2 || ''}">
                     </div>
                     <div class="mb-3">
-                        <label for="liquid${liquidNum}_notes" class="form-label">Notes</label>
-                        <textarea class="form-control" id="liquid${liquidNum}_notes" rows="3">${this.formData[`liquid${liquidNum}_notes`] || ''}</textarea>
+                        <p>Liquid 3:</p>
+                        <button type="button" class="btn btn-outline-primary liquid3-btn ${this.formData.liquid3 === 'Yes' ? 'active' : ''}" data-value="Yes">Yes</button>
+                        <button type="button" class="btn btn-outline-primary liquid3-btn ${this.formData.liquid3 === 'No' ? 'active' : ''}" data-value="No">No</button>
+                        <input type="hidden" id="liquid3" value="${this.formData.liquid3 || ''}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="liquid_notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="liquid_notes" rows="3">${this.formData.liquid_notes || ''}</textarea>
                     </div>
                 `;
                 break;
-            case 6: // Bowel Movement
+            case 4: // Bowel Movement
                 html += `
                     <div class="mb-3">
                         <label class="form-label">Size</label>
@@ -274,7 +269,7 @@ class DailyLogWizard {
                     </div>
                 `;
                 break;
-            case 7: // Urine Output
+            case 5: // Urine Output
                 html += `
                     <div class="mb-3">
                         <label class="form-label">Urine Output</label>
@@ -360,6 +355,54 @@ class DailyLogWizard {
             });
         });
 
+         // Liquid 1 buttons
+         const liquid1Buttons = document.querySelectorAll('.liquid1-btn');
+         liquid1Buttons.forEach(button => {
+             button.addEventListener('click', (e) => {
+                 // Remove active class from all buttons
+                 liquid1Buttons.forEach(btn => btn.classList.remove('active'));
+                 // Add active class to clicked button
+                 e.target.classList.add('active');
+                 // Update hidden input
+                 const hiddenInput = document.getElementById('liquid1');
+                 if (hiddenInput) {
+                     hiddenInput.value = e.target.dataset.value;
+                 }
+             });
+         });
+
+         // Liquid 2 buttons
+         const liquid2Buttons = document.querySelectorAll('.liquid2-btn');
+         liquid2Buttons.forEach(button => {
+             button.addEventListener('click', (e) => {
+                 // Remove active class from all buttons
+                 liquid2Buttons.forEach(btn => btn.classList.remove('active'));
+                 // Add active class to clicked button
+                 e.target.classList.add('active');
+                 // Update hidden input
+                 const hiddenInput = document.getElementById('liquid2');
+                 if (hiddenInput) {
+                     hiddenInput.value = e.target.dataset.value;
+                 }
+             });
+         });
+
+         // Liquid 3 buttons
+         const liquid3Buttons = document.querySelectorAll('.liquid3-btn');
+         liquid3Buttons.forEach(button => {
+             button.addEventListener('click', (e) => {
+                 // Remove active class from all buttons
+                 liquid3Buttons.forEach(btn => btn.classList.remove('active'));
+                 // Add active class to clicked button
+                 e.target.classList.add('active');
+                 // Update hidden input
+                 const hiddenInput = document.getElementById('liquid3');
+                 if (hiddenInput) {
+                     hiddenInput.value = e.target.dataset.value;
+                 }
+             });
+         });
+
         // Bowel size buttons
         const bowelSizeButtons = document.querySelectorAll('.bowel-size-btn');
         bowelSizeButtons.forEach(button => {
@@ -432,19 +475,18 @@ class DailyLogWizard {
                 if (intakeLevel) this.formData.intake_level = intakeLevel.value;
                 if (foodNotes) this.formData.food_notes = foodNotes.value;
                 break;
-            case 3: // Liquid 1
-            case 4: // Liquid 2
-            case 5: // Liquid 3
-                const liquidNum = step.id - 2;
-                const liquidType = document.getElementById(`liquid${liquidNum}_type`);
-                const liquidAmount = document.getElementById(`liquid${liquidNum}_amount`);
-                const liquidNotes = document.getElementById(`liquid${liquidNum}_notes`);
+            case 3: // Liquids
+                const liquid1 = document.getElementById('liquid1');
+                const liquid2 = document.getElementById('liquid2');
+                const liquid3 = document.getElementById('liquid3');
+                const liquidNotes = document.getElementById('liquid_notes');
 
-                if (liquidType) this.formData[`liquid${liquidNum}_type`] = liquidType.value;
-                if (liquidAmount) this.formData[`liquid${liquidNum}_amount`] = liquidAmount.value;
-                if (liquidNotes) this.formData[`liquid${liquidNum}_notes`] = liquidNotes.value;
+                if (liquid1) this.formData.liquid1 = liquid1.value;
+                if (liquid2) this.formData.liquid2 = liquid2.value;
+                if (liquid3) this.formData.liquid3 = liquid3.value;
+                if (liquidNotes) this.formData.liquid_notes = liquidNotes.value;
                 break;
-            case 6: // Bowel Movement
+            case 4: // Bowel Movement
                 const bowelSize = document.getElementById('bowel_size');
                 const bowelConsistency = document.getElementById('bowel_consistency');
                 const bowelNotes = document.getElementById('bowel_notes');
@@ -453,7 +495,7 @@ class DailyLogWizard {
                 if (bowelConsistency) this.formData.bowel_consistency = bowelConsistency.value;
                 if (bowelNotes) this.formData.bowel_notes = bowelNotes.value;
                 break;
-            case 7: // Urine Output
+            case 5: // Urine Output
                 const urineOutput = document.getElementById('urine_output');
                 const urineNotes = document.getElementById('urine_notes');
 
@@ -545,7 +587,10 @@ style.textContent = `
     .food-intake-btn.active,
     .bowel-size-btn.active,
     .bowel-consistency-btn.active,
-    .urine-output-btn.active {
+    .urine-output-btn.active,
+    .liquid1-btn.active,
+    .liquid2-btn.active,
+    .liquid3-btn.active {
         background-color: #6b48ff !important;
         border-color: #6b48ff !important;
         color: white !important;
@@ -553,7 +598,10 @@ style.textContent = `
     .food-intake-btn,
     .bowel-size-btn,
     .bowel-consistency-btn,
-    .urine-output-btn {
+    .urine-output-btn,
+    .liquid1-btn,
+    .liquid2-btn,
+    .liquid3-btn{
         padding: 15px;
         font-weight: 600;
         font-size: 1.1rem;
@@ -563,7 +611,10 @@ style.textContent = `
     .food-intake-btn:hover,
     .bowel-size-btn:hover,
     .bowel-consistency-btn:hover,
-    .urine-output-btn:hover {
+    .urine-output-btn:hover,
+    .liquid1-btn:hover,
+    .liquid2-btn:hover,
+    .liquid3-btn:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
