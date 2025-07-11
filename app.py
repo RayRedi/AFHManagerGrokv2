@@ -942,6 +942,17 @@ def daily_log_submit(resident_id):
         db.session.rollback()
         return jsonify({'error': f'Database error: {str(e)}'}), 500
 
+@app.route('/resident/<int:resident_id>/daily-logs', methods=['GET'])
+@login_required
+def daily_logs_content(resident_id):
+    resident = Resident.query.get_or_404(resident_id)
+    
+    # Handle AJAX requests by returning only the content
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    
+    template_name = 'daily_logs_content.html' if is_ajax else 'daily_logs.html'
+    return render_template(template_name, resident=resident)
+
 @app.route('/resident/<int:resident_id>/logs', methods=['GET', 'POST'])
 @login_required
 def daily_logs(resident_id):
