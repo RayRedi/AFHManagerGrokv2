@@ -812,8 +812,23 @@ def daily_log_submit(resident_id):
         return jsonify({'error': 'Access denied'}), 403
 
     resident = Resident.query.get_or_404(resident_id)
-    meal_type = request.form.get('meal_type')
-    form_data = json.loads(request.form.get('form_data', '{}'))
+    
+    # Handle both JSON and form data
+    if request.is_json:
+        data = request.get_json()
+        meal_type = data.get('meal_type')
+        form_data = data.get('form_data', {})
+    else:
+        meal_type = request.form.get('meal_type')
+        form_data_str = request.form.get('form_data', '{}')
+        try:
+            form_data = json.loads(form_data_str)
+        except (json.JSONDecodeError, TypeError):
+            return jsonify({'error': 'Invalid form data format'}), 400
+    
+    if not meal_type:
+        return jsonify({'error': 'Meal type is required'}), 400
+    
     today = date.today()
 
     try:
@@ -846,11 +861,12 @@ def daily_log_submit(resident_id):
             )
             db.session.add(food)
 
-        # Save Liquid Intake - Multiple entries
+        # Save Liquid Intake - Multiple entries or single entry
         # Delete existing liquid intakes for the meal
         LiquidIntake.query.filter_by(resident_id=resident_id, date=today, meal_type=meal_type).delete()
 
-        # Save each liquid intake entry
+        # Handle multiple liquid entries
+        liquid_saved = False
         for i in range(1, 4):  # Liquid 1, 2, 3
             liquid_key = f'liquid_{i}'
             if form_data.get(liquid_key):
@@ -861,6 +877,17 @@ def daily_log_submit(resident_id):
                     intake=f"Liquid {i}: {form_data[liquid_key]}"
                 )
                 db.session.add(liquid)
+                liquid_saved = True
+        
+        # Handle single liquid intake if no multiple entries
+        if not liquid_saved and form_data.get('liquid_intake'):
+            liquid = LiquidIntake(
+                resident_id=resident_id,
+                date=today,
+                meal_type=meal_type,
+                intake=form_data['liquid_intake']
+            )
+            db.session.add(liquid)
 
         # Save Bowel Movement
         if form_data.get('size') and form_data.get('consistency'):
@@ -896,11 +923,14 @@ def daily_log_submit(resident_id):
         db.session.add(audit_log)
         db.session.commit()
 
-        return jsonify({'success': True})
+        return jsonify({'success': True, 'message': 'Daily log saved successfully'})
 
+    except ValueError as ve:
+        db.session.rollback()
+        return jsonify({'error': f'Invalid data format: {str(ve)}'}), 400
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
 
 @app.route('/resident/<int:resident_id>/logs', methods=['GET', 'POST'])
 @login_required
