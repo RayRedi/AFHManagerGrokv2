@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 {% block title %}{{ resident.name }} - AFH Management{% endblock %}
 {% block content %}
@@ -13,7 +14,7 @@
                 <br>
                 <small class="text-light">Emergency: {{ resident.emergency_contact or 'Not specified' }}</small>
             </div>
-
+            
             <nav class="sidebar-nav">
                 <ul class="nav flex-column">
                     <li class="nav-item">
@@ -94,7 +95,7 @@
                         <p class="text-muted">Choose from Medications, Documents, Daily Logs, Incident Reports, or other options to manage {{ resident.name }}'s information.</p>
                     </div>
                 </div>
-
+                
                 <!-- Loading indicator -->
                 <div id="loading-indicator" class="text-center py-5" style="display: none;">
                     <div class="spinner-border text-primary" role="status">
@@ -145,22 +146,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const sidebarLinks = document.querySelectorAll('.sidebar-link');
     const mainContent = document.getElementById('main-content');
     const loadingIndicator = document.getElementById('loading-indicator');
-
+    
     // Handle sidebar navigation
     sidebarLinks.forEach(link => {
         link.addEventListener('click', function(e) {
             e.preventDefault();
-
+            
             // Remove active class from all links
             sidebarLinks.forEach(l => l.classList.remove('active'));
-
+            
             // Add active class to clicked link
             this.classList.add('active');
-
+            
             // Get section to load
             const section = this.getAttribute('data-section');
             loadSection(section);
-
+            
             // Close mobile menu if open
             const mobileCollapse = document.getElementById('mobile-sidebar');
             if (mobileCollapse && mobileCollapse.classList.contains('show')) {
@@ -168,16 +169,16 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
-
+    
     async function loadSection(section) {
         // Show loading indicator
         loadingIndicator.style.display = 'block';
         mainContent.style.display = 'none';
-
+        
         try {
             let url;
             let isFormPage = false;
-
+            
             switch(section) {
                 case 'medications':
                     url = `{{ url_for('medications', resident_id=resident.id) }}`;
@@ -208,34 +209,34 @@ document.addEventListener('DOMContentLoaded', function() {
                 default:
                     throw new Error('Unknown section');
             }
-
+            
             // For form pages, redirect directly
             if (isFormPage) {
                 window.location.href = url;
                 return;
             }
-
+            
             // Fetch content via AJAX
             const response = await fetch(url, {
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             });
-
+            
             if (!response.ok) {
                 throw new Error('Failed to load content');
             }
-
+            
             const html = await response.text();
-
+            
             // Extract content from the response (remove base template wrapper)
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
             const contentDiv = doc.querySelector('.container, .container-fluid, main') || doc.body;
-
+            
             // Update main content
             mainContent.innerHTML = contentDiv.innerHTML;
-
+            
             // Re-initialize any JavaScript components if needed
             if (typeof initializeMedicationSearch === 'function') {
                 setTimeout(() => {
@@ -243,7 +244,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     initializeMedicationSearch('name', 'medication-dropdown');
                 }, 100);
             }
-
+            
         } catch (error) {
             console.error('Error loading section:', error);
             mainContent.innerHTML = `
