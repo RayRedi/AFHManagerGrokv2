@@ -950,8 +950,10 @@ def daily_logs_content(resident_id):
     # Handle AJAX requests by returning only the content
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
     
-    template_name = 'daily_logs_content.html' if is_ajax else 'daily_logs.html'
-    return render_template(template_name, resident=resident)
+    if is_ajax:
+        return render_template('daily_logs_content.html', resident=resident)
+    else:
+        return render_template('daily_logs.html', resident=resident)
 
 @app.route('/resident/<int:resident_id>/logs', methods=['GET', 'POST'])
 @login_required
