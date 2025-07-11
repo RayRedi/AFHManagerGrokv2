@@ -277,12 +277,12 @@ class DailyLogWizard {
             case 7: // Urine Output
                 html += `
                     <div class="mb-3">
-                        <label for="urine_output" class="form-label">Urine Output</label>
-                        <select class="form-select" id="urine_output">
-                            <option value="">Select output</option>
-                            <option value="Yes" ${this.formData.urine_output === 'Yes' ? 'selected' : ''}>Yes</option>
-                            <option value="No" ${this.formData.urine_output === 'No' ? 'selected' : ''}>No</option>
-                        </select>
+                        <label class="form-label">Urine Output</label>
+                        <div class="d-grid gap-2" style="grid-template-columns: repeat(2, 1fr);">
+                            <button type="button" class="btn btn-outline-primary urine-output-btn ${this.formData.urine_output === 'Yes' ? 'active' : ''}" data-value="Yes">Yes</button>
+                            <button type="button" class="btn btn-outline-primary urine-output-btn ${this.formData.urine_output === 'No' ? 'active' : ''}" data-value="No">No</button>
+                        </div>
+                        <input type="hidden" id="urine_output" value="${this.formData.urine_output || ''}">
                     </div>
                     <div class="mb-3">
                         <label for="urine_notes" class="form-label">Notes</label>
@@ -386,6 +386,22 @@ class DailyLogWizard {
                 e.target.classList.add('active');
                 // Update hidden input
                 const hiddenInput = document.getElementById('bowel_consistency');
+                if (hiddenInput) {
+                    hiddenInput.value = e.target.dataset.value;
+                }
+            });
+        });
+
+        // Urine output buttons
+        const urineOutputButtons = document.querySelectorAll('.urine-output-btn');
+        urineOutputButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                // Remove active class from all buttons
+                urineOutputButtons.forEach(btn => btn.classList.remove('active'));
+                // Add active class to clicked button
+                e.target.classList.add('active');
+                // Update hidden input
+                const hiddenInput = document.getElementById('urine_output');
                 if (hiddenInput) {
                     hiddenInput.value = e.target.dataset.value;
                 }
@@ -528,14 +544,16 @@ const style = document.createElement('style');
 style.textContent = `
     .food-intake-btn.active,
     .bowel-size-btn.active,
-    .bowel-consistency-btn.active {
+    .bowel-consistency-btn.active,
+    .urine-output-btn.active {
         background-color: #6b48ff !important;
         border-color: #6b48ff !important;
         color: white !important;
     }
     .food-intake-btn,
     .bowel-size-btn,
-    .bowel-consistency-btn {
+    .bowel-consistency-btn,
+    .urine-output-btn {
         padding: 15px;
         font-weight: 600;
         font-size: 1.1rem;
@@ -544,7 +562,8 @@ style.textContent = `
     }
     .food-intake-btn:hover,
     .bowel-size-btn:hover,
-    .bowel-consistency-btn:hover {
+    .bowel-consistency-btn:hover,
+    .urine-output-btn:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
