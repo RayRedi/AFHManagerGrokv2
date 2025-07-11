@@ -268,19 +268,19 @@ function initializeMedicationFrequency() {
                 const presetTime = presetTimes[i - 1] || '';
                 const timeDiv = createTimeInput(i, presetTime);
                 timeInputsContainer.appendChild(timeDiv);
-            }
-            
-            // Add helpful text about presets
-            if (presetTimes.length > 0) {
-                const helpText = document.createElement('div');
-                helpText.className = 'col-12 mb-2';
-                helpText.innerHTML = `
-                    <small class="text-muted">
-                        <i class="fas fa-info-circle me-1"></i>
-                        Preset times are automatically filled but can be edited as needed
-                    </small>
-                `;
-                timeInputsContainer.insertBefore(helpText, timeInputsContainer.firstChild);
+                
+                // Add helpful text about presets under each time input if preset exists
+                if (presetTime) {
+                    const helpText = document.createElement('div');
+                    helpText.className = 'col-12 mb-2';
+                    helpText.innerHTML = `
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Preset times are automatically filled but can be edited as needed
+                        </small>
+                    `;
+                    timeInputsContainer.appendChild(helpText);
+                }
             }
         } else {
             // Hide time pickers for PRN (As Needed)
