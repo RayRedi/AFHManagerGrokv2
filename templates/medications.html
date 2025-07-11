@@ -113,42 +113,29 @@
                         <small class="text-muted">Select how often to take this medication</small>
                     </div>
                 </div>
-            </div>
 
-            <!-- Step 3: Additional Details (Collapsible) -->
-            <div class="step-container mb-4">
-                <h5 class="step-title text-primary mb-3">
-                    <span class="step-number">3</span> Additional Information
-                    <button type="button" class="btn btn-link btn-sm ms-2 p-0" data-bs-toggle="collapse" data-bs-target="#additionalDetails" aria-expanded="false">
-                        <i class="fas fa-chevron-down"></i> Optional Details
-                    </button>
-                </h5>
-
-                <div class="collapse" id="additionalDetails">
-                    <div class="card card-body bg-light">
-                        <div class="row">
-                            <div class="col-12 col-md-6 mb-3">
-                                <label for="start_date" class="form-label fw-semibold">
-                                    Start Date <span class="text-danger">*</span>
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text">
-                                        <i class="fas fa-calendar-plus text-muted"></i>
-                                    </span>
-                                    {{ medication_form.start_date(class="form-control") }}
-                                </div>
-                            </div>
-                            <div class="col-12 col-md-6 mb-3">
-                                <label for="end_date" class="form-label fw-semibold">
-                                    Expiration Date <span class="text-danger">*</span>
-                                </label>
-                                <div class="input-group">
-                                    <span class="input-group-text">
-                                        <i class="fas fa-calendar-minus text-muted"></i>
-                                    </span>
-                                    {{ medication_form.end_date(class="form-control", required=true) }}
-                                </div>
-                            </div>
+                <!-- Date Information -->
+                <div class="row">
+                    <div class="col-12 col-md-6 mb-3">
+                        <label for="start_date" class="form-label fw-semibold">
+                            Start Date <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-calendar-plus text-muted"></i>
+                            </span>
+                            {{ medication_form.start_date(class="form-control") }}
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-6 mb-3">
+                        <label for="end_date" class="form-label fw-semibold">
+                            Expiration Date <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-calendar-minus text-muted"></i>
+                            </span>
+                            {{ medication_form.end_date(class="form-control", required=true) }}
                         </div>
                     </div>
                 </div>
