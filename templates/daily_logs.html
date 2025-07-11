@@ -535,29 +535,43 @@ class DailyLogWizard {
         this.saveCurrentStep();
 
         try {
-            const formData = new FormData();
-            formData.append('meal_type', this.currentMeal);
-            formData.append('form_data', JSON.stringify(this.formData));
+            const csrfToken = document.querySelector('[name=csrf_token]')?.value || 
+                             document.querySelector('meta[name="csrf-token"]')?.content;
+            
+            const payload = {
+                meal_type: this.currentMeal,
+                form_data: this.formData
+            };
 
-            const csrfToken = document.querySelector('[name=csrf_token]')?.value;
+            const headers = {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            };
+
             if (csrfToken) {
-                formData.append('csrf_token', csrfToken);
+                headers['X-CSRFToken'] = csrfToken;
             }
+
+            console.log('Submitting payload:', payload);
 
             const response = await fetch(`/resident/{{ resident.id }}/daily-log-submit`, {
                 method: 'POST',
-                body: formData
+                headers: headers,
+                body: JSON.stringify(payload)
             });
 
-            if (response.ok) {
-                alert('Daily log submitted successfully!');
+            const result = await response.json();
+            
+            if (response.ok && result.success) {
+                alert(result.message || 'Daily log submitted successfully!');
                 location.reload();
             } else {
-                alert('Error submitting form. Please try again.');
+                console.error('Server error:', result);
+                alert(result.error || 'Error submitting form. Please try again.');
             }
         } catch (error) {
-            console.error('Error:', error);
-            alert('Error submitting form. Please try again.');
+            console.error('Request error:', error);
+            alert('Network error. Please check your connection and try again.');
         }
     }
 }
