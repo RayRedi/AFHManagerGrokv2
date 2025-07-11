@@ -212,18 +212,18 @@ class DailyLogWizard {
             case 2: // Food Intake
                 html += `
                     <div class="mb-3">
-                        <label for="intake_level" class="form-label">Food Intake Level</label>
-                        <select class="form-select" id="intake_level">
-                            <option value="">Select intake level</option>
-                            <option value="25%" ${this.formData.intake_level === '25%' ? 'selected' : ''}>25%</option>
-                            <option value="50%" ${this.formData.intake_level === '50%' ? 'selected' : ''}>50%</option>
-                            <option value="75%" ${this.formData.intake_level === '75%' ? 'selected' : ''}>75%</option>
-                            <option value="100%" ${this.formData.intake_level === '100%' ? 'selected' : ''}>100%</option>
-                            <option value="Ensure" ${this.formData.intake_level === 'Ensure' ? 'selected' : ''}>Ensure</option>
-                            <option value="Other" ${this.formData.intake_level === 'Other' ? 'selected' : ''}>Other</option>
-                        </select>
+                        <label class="form-label">Food Intake Level</label>
+                        <div class="d-grid gap-2" style="grid-template-columns: repeat(3, 1fr);">
+                            <button type="button" class="btn btn-outline-primary food-intake-btn ${this.formData.intake_level === '25%' ? 'active' : ''}" data-value="25%">25%</button>
+                            <button type="button" class="btn btn-outline-primary food-intake-btn ${this.formData.intake_level === '50%' ? 'active' : ''}" data-value="50%">50%</button>
+                            <button type="button" class="btn btn-outline-primary food-intake-btn ${this.formData.intake_level === '75%' ? 'active' : ''}" data-value="75%">75%</button>
+                            <button type="button" class="btn btn-outline-primary food-intake-btn ${this.formData.intake_level === '100%' ? 'active' : ''}" data-value="100%">100%</button>
+                            <button type="button" class="btn btn-outline-primary food-intake-btn ${this.formData.intake_level === 'Ensure' ? 'active' : ''}" data-value="Ensure">Ensure</button>
+                            <button type="button" class="btn btn-outline-primary food-intake-btn ${this.formData.intake_level === 'Other' ? 'active' : ''}" data-value="Other">Other</button>
+                        </div>
+                        <input type="hidden" id="intake_level" value="${this.formData.intake_level || ''}">
                     </div>
-                    <div class="mb-3">
+                    <div class="mb-3" id="food_notes_container" style="display: ${this.formData.intake_level === 'Other' ? 'block' : 'none'};">
                         <label for="food_notes" class="form-label">Notes</label>
                         <textarea class="form-control" id="food_notes" rows="3">${this.formData.food_notes || ''}</textarea>
                     </div>
@@ -295,6 +295,7 @@ class DailyLogWizard {
         }
 
         stepContent.innerHTML = html;
+        this.attachStepEventListeners();
         this.updateNavigationButtons();
     }
 
@@ -337,6 +338,29 @@ class DailyLogWizard {
         if (submitBtn) {
             submitBtn.onclick = () => this.submitForm();
         }
+    }
+
+    attachStepEventListeners() {
+        // Food intake buttons
+        const foodIntakeButtons = document.querySelectorAll('.food-intake-btn');
+        foodIntakeButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                // Remove active class from all buttons
+                foodIntakeButtons.forEach(btn => btn.classList.remove('active'));
+                // Add active class to clicked button
+                e.target.classList.add('active');
+                // Update hidden input
+                const hiddenInput = document.getElementById('intake_level');
+                if (hiddenInput) {
+                    hiddenInput.value = e.target.dataset.value;
+                }
+                // Show/hide notes field
+                const notesContainer = document.getElementById('food_notes_container');
+                if (notesContainer) {
+                    notesContainer.style.display = e.target.dataset.value === 'Other' ? 'block' : 'none';
+                }
+            });
+        });
     }
 
     saveCurrentStep() {
@@ -468,5 +492,27 @@ document.addEventListener('DOMContentLoaded', function() {
         document.head.appendChild(meta);
     }
 });
+
+// Add CSS for active buttons
+const style = document.createElement('style');
+style.textContent = `
+    .food-intake-btn.active {
+        background-color: #6b48ff !important;
+        border-color: #6b48ff !important;
+        color: white !important;
+    }
+    .food-intake-btn {
+        padding: 15px;
+        font-weight: 600;
+        font-size: 1.1rem;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+    }
+    .food-intake-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+`;
+document.head.appendChild(style);
 </script>
 {% endblock %}
