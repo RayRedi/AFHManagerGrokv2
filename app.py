@@ -1229,7 +1229,7 @@ def report(resident_id):
         pdf = canvas.Canvas(buffer, pagesize=letter)
         pdf.setFont("Helvetica", 12)
         y = 750
-        pdf.drawString(100, y, f"Report for {resident.name}: {start_date} to {end_date}")
+        pdf.drawString(100, y, f"Report for {resident.name} (DOB: {resident.formatted_dob or 'N/A'}): {start_date} to {end_date}")
         y -= 20
         pdf.drawString(100, y, "Food Intakes")
         y -= 20

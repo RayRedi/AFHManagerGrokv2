@@ -4,7 +4,7 @@
     <h1>{{ resident.name }}</h1>
     <div class="card">
         <div class="card-body">
-            <p><strong>DOB:</strong> {{ resident.dob }}</p>
+            <p><strong>DOB:</strong> {{ resident.formatted_dob or 'N/A' }}</p>
             <p><strong>Medical Info:</strong> {{ resident.medical_info or 'N/A' }}</p>
             <p><strong>Emergency Contact:</strong> {{ resident.emergency_contact or 'N/A' }}</p>
             <a href="{{ url_for('daily_logs', resident_id=resident.id) }}" class="btn btn-primary">Daily Logs</a>
