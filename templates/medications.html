@@ -179,18 +179,24 @@ class MedicationWizard {
     }
 
     initializeWizard() {
+        const modal = document.getElementById('medicationWizardModal');
+        if (!modal) {
+            console.error('Medication wizard modal not found');
+            return;
+        }
+
         // Initialize autocomplete when wizard opens
-        document.getElementById('medicationWizardModal').addEventListener('shown.bs.modal', () => {
+        modal.addEventListener('shown.bs.modal', () => {
             this.showStep(1);
             this.updateProgress();
             // Initialize autocomplete for medication search
             setTimeout(() => {
                 this.initializeWizardAutocomplete();
-            }, 200);
+            }, 300);
         });
 
         // Reset wizard when modal closes
-        document.getElementById('medicationWizardModal').addEventListener('hidden.bs.modal', () => {
+        modal.addEventListener('hidden.bs.modal', () => {
             this.resetWizard();
         });
     }
@@ -210,17 +216,22 @@ class MedicationWizard {
         const skipBtn = document.getElementById('skipBtn');
         const saveBtn = document.getElementById('saveBtn');
 
+        if (!stepContent) {
+            console.error('Step content container not found');
+            return;
+        }
+
         // Show/hide navigation buttons
-        prevBtn.style.display = step > 1 ? 'block' : 'none';
+        if (prevBtn) prevBtn.style.display = step > 1 ? 'block' : 'none';
         
         if (step === this.totalSteps) {
-            nextBtn.style.display = 'none';
-            skipBtn.style.display = 'none';
-            saveBtn.style.display = 'block';
+            if (nextBtn) nextBtn.style.display = 'none';
+            if (skipBtn) skipBtn.style.display = 'none';
+            if (saveBtn) saveBtn.style.display = 'block';
         } else {
-            nextBtn.style.display = 'block';
-            skipBtn.style.display = this.steps[step - 1].required ? 'none' : 'block';
-            saveBtn.style.display = 'none';
+            if (nextBtn) nextBtn.style.display = 'block';
+            if (skipBtn) skipBtn.style.display = this.steps[step - 1].required ? 'none' : 'block';
+            if (saveBtn) saveBtn.style.display = 'none';
         }
 
         // Generate step content
@@ -228,7 +239,9 @@ class MedicationWizard {
         this.updateProgress();
 
         // Populate form with existing data
-        this.populateStepData(step);
+        setTimeout(() => {
+            this.populateStepData(step);
+        }, 100);
     }
 
     getStepContent(step) {
@@ -839,7 +852,18 @@ class MedicationWizard {
 
 // Initialize wizard when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    window.medicationWizard = new MedicationWizard();
+    try {
+        // Check if we're on the medications page
+        if (document.getElementById('medicationWizardModal')) {
+            console.log('Initializing medication wizard...');
+            window.medicationWizard = new MedicationWizard();
+            console.log('Medication wizard initialized successfully');
+        } else {
+            console.log('Medication wizard modal not found - skipping initialization');
+        }
+    } catch (error) {
+        console.error('Error initializing medication wizard:', error);
+    }
 });
 </script>
 {% endblock %}
