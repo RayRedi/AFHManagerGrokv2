@@ -2,47 +2,49 @@
 {% extends "base.html" %}
 {% block title %}{{ resident.name }} - AFH Management{% endblock %}
 {% block content %}
-<!-- Resident Info Bar - Always Visible at Top -->
-<div class="resident-info-bar mb-4">
-    <div class="card shadow-sm border-0">
-        <div class="card-body p-3" style="background: linear-gradient(135deg, #6b48ff 0%, #0052cc 100%); color: white; border-radius: 12px;">
-            <div class="row align-items-center">
-                <div class="col-lg-3">
-                    <h4 class="mb-1 fw-bold">{{ resident.name }}</h4>
-                    <small class="opacity-75">
-                        <i class="fas fa-calendar-alt me-1"></i>
-                        DOB: {{ resident.formatted_dob or 'N/A' }}
-                    </small>
-                </div>
-                <div class="col-lg-4">
-                    <div class="d-flex align-items-center">
-                        <i class="fas fa-notes-medical me-2"></i>
-                        <div>
-                            <small class="opacity-75 d-block">Medical Info:</small>
-                            <span class="fw-medium">{{ resident.medical_info or 'None specified' }}</span>
+<!-- Resident Info Bar - Fixed Below Navbar -->
+<div class="resident-info-bar-fixed">
+    <div class="container-fluid px-0">
+        <div class="card shadow-sm border-0 mb-0">
+            <div class="card-body p-3" style="background: linear-gradient(135deg, #6b48ff 0%, #0052cc 100%); color: white; border-radius: 0;">
+                <div class="row align-items-center">
+                    <div class="col-lg-3">
+                        <h4 class="mb-1 fw-bold">{{ resident.name }}</h4>
+                        <small class="opacity-75">
+                            <i class="fas fa-calendar-alt me-1"></i>
+                            DOB: {{ resident.formatted_dob or 'N/A' }}
+                        </small>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-notes-medical me-2"></i>
+                            <div>
+                                <small class="opacity-75 d-block">Medical Info:</small>
+                                <span class="fw-medium">{{ resident.medical_info or 'None specified' }}</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="col-lg-4">
-                    <div class="d-flex align-items-center">
-                        <i class="fas fa-phone me-2"></i>
-                        <div>
-                            <small class="opacity-75 d-block">Emergency Contact:</small>
-                            <span class="fw-medium">{{ resident.emergency_contact or 'Not specified' }}</span>
+                    <div class="col-lg-4">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-phone me-2"></i>
+                            <div>
+                                <small class="opacity-75 d-block">Emergency Contact:</small>
+                                <span class="fw-medium">{{ resident.emergency_contact or 'Not specified' }}</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="col-lg-1 text-end">
-                    <a href="{{ url_for('home') }}" class="btn btn-light btn-sm">
-                        <i class="fas fa-arrow-left me-1"></i>Back
-                    </a>
+                    <div class="col-lg-1 text-end">
+                        <a href="{{ url_for('home') }}" class="btn btn-light btn-sm">
+                            <i class="fas fa-arrow-left me-1"></i>Back
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
+</div></div>
 
-<div class="container-fluid p-0">
+<div class="resident-layout-container">
     <div class="row g-0">
         <!-- Fixed Sidebar Navigation -->
         <div class="col-lg-3 col-xl-2" id="resident-sidebar">
@@ -143,25 +145,29 @@
 </div>
 
 <style>
-/* Resident Info Bar Styles */
-.resident-info-bar {
-    position: sticky;
-    top: 76px; /* Account for navbar height */
+/* Resident Info Bar Styles - Fixed Below Navbar */
+.resident-info-bar-fixed {
+    position: fixed;
+    top: 76px; /* Directly below navbar */
+    left: 0;
+    right: 0;
+    width: 100%;
     z-index: 100;
     background: #fff;
-    padding-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.resident-info-bar .card-body {
+.resident-info-bar-fixed .card-body {
     background: linear-gradient(135deg, #6b48ff 0%, #0052cc 100%) !important;
+    border-radius: 0 !important;
 }
 
-/* Sidebar Styles - Flush to Left */
+/* Sidebar Styles - Flush to Left, Below Info Bar */
 #resident-sidebar {
     position: fixed;
-    top: 180px; /* Below info bar */
+    top: 156px; /* Below navbar + info bar */
     left: 0;
-    height: calc(100vh - 180px);
+    height: calc(100vh - 156px);
     background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%);
     z-index: 50;
     border-right: 1px solid rgba(255,255,255,0.1);
@@ -206,8 +212,9 @@
 /* Main Content Styles */
 .main-content-container {
     margin-left: 0;
+    margin-top: 80px; /* Account for fixed info bar */
     padding: 2rem;
-    min-height: calc(100vh - 200px);
+    min-height: calc(100vh - 236px);
 }
 
 /* Mobile Responsive */
@@ -218,16 +225,33 @@
     
     .main-content-container {
         margin-left: 0;
+        margin-top: 80px;
         padding: 1rem;
     }
     
-    .resident-info-bar .row > div {
+    .resident-info-bar-fixed .row > div {
         margin-bottom: 1rem;
     }
     
-    .resident-info-bar .col-lg-1 {
+    .resident-info-bar-fixed .col-lg-1 {
         order: -1;
         margin-bottom: 1rem;
+    }
+    
+    .resident-info-bar-fixed {
+        position: relative;
+        top: 0;
+        box-shadow: none;
+    }
+    
+    .main-content-container {
+        margin-top: 0;
+    }
+    
+    #resident-sidebar {
+        top: auto;
+        position: relative;
+        height: auto;
     }
 }
 
@@ -250,6 +274,18 @@
 
 #main-content.loading {
     opacity: 0.5;
+}
+
+/* Resident Layout Container */
+.resident-layout-container {
+    margin-top: 80px; /* Space for fixed info bar */
+    padding: 0;
+}
+
+@media (max-width: 991.98px) {
+    .resident-layout-container {
+        margin-top: 0;
+    }
 }
 </style>
 
