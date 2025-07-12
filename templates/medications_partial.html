@@ -62,7 +62,7 @@
     <div class="card shadow-sm mb-4">
         <div class="card-body">
             <h3 class="card-title fw-bold text-dark">Log Dose</h3>
-            <form method="POST" action="{{ url_for('medications', resident_id=resident.id) }}">
+            <form method="POST" action="{{ url_for('medications_partial', resident_id=resident.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="row">
                     <div class="col-12 col-md-6 mb-3">
@@ -118,7 +118,7 @@
                             </div>
                             {% if current_user.role == 'admin' %}
                             <div class="card-footer">
-                                <form method="POST" action="{{ url_for('medications', resident_id=resident.id) }}" style="display: inline;">
+                                <form method="POST" action="{{ url_for('medications_partial', resident_id=resident.id) }}" style="display: inline;">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                     <input type="hidden" name="medication_id" value="{{ medication.id }}">
                                     <button type="submit" name="delete_medication" class="btn btn-sm btn-outline-danger" 
@@ -629,7 +629,7 @@ class MedicationWizard {
             formData.append('expiration_date', this.formData.end_date);
             formData.append('add_medication', '1');
 
-            const response = await fetch(`{{ url_for('medications', resident_id=resident.id) }}`, {
+            const response = await fetch(`{{ url_for('medications_partial', resident_id=resident.id) }}`, {
                 method: 'POST',
                 body: formData
             });
