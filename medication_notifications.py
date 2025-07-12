@@ -5,7 +5,6 @@ from flask_mail import Message
 import logging
 
 def check_and_send_medication_alerts(db, mail, Medication, Document, Resident):
-    try:
     """
     Check for expiring medications and documents, send alerts only when appropriate.
     Tracks sent notifications to prevent duplicates.
@@ -106,9 +105,6 @@ def check_and_send_medication_alerts(db, mail, Medication, Document, Resident):
         logging.error(f"Error checking medication alerts: {e}")
         
     return alerts
-    except Exception as e:
-        print(f"Error checking medication alerts: {e}")
-        return []
 
 def has_alert_been_sent(db, alert_key, alert_type):
     """Check if an alert has already been sent"""
