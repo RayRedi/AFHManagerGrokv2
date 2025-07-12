@@ -372,13 +372,10 @@ def medication_suggestions():
     query = request.args.get('term', '')
     if not query:
         return jsonify([])
-    
-    # Search in MedicationCatalog
     suggestions = MedicationCatalog.query.filter(
         (MedicationCatalog.name.ilike(f'%{query}%')) |
-        (MedicationCatalog.common_uses.ilike(f'%{query}%'))
+        (MedicationCatalog._common_uses.ilike(f'%{cipher.encrypt(query.encode()).decode()}%'))
     ).order_by(MedicationCatalog.name).limit(20).all()
-    
     return jsonify([{
         'id': med.id,
         'name': med.name,
@@ -1064,60 +1061,26 @@ def medications(resident_id):
     log_form.medication_id.choices = [(med.id, med.name) for med in medications]
 
     if request.method == 'POST':
-        # Handle wizard form submission
-        if 'add_medication' in request.form:
-            name = sanitize_input(request.form.get('name', ''))
-            dosage = sanitize_input(request.form.get('dosage', ''))
-            frequency = sanitize_input(request.form.get('frequency', ''))
-            notes = sanitize_input(request.form.get('notes', ''))
-            form_type = sanitize_input(request.form.get('form', ''))
-            common_uses = sanitize_input(request.form.get('common_uses', ''))
-            start_date_str = request.form.get('start_date', '')
-            end_date_str = request.form.get('end_date', '')
-            
+        if medication_form.validate_on_submit() and 'add_medication' in request.form:
+            name = sanitize_input(medication_form.name.data)
+            dosage = sanitize_input(medication_form.dosage.data)
+            frequency = sanitize_input(medication_form.frequency.data)
+            notes = sanitize_input(medication_form.notes.data)
+            form = sanitize_input(medication_form.form.data)
+            common_uses = sanitize_input(medication_form.common_uses.data)
+            start_date = medication_form.start_date.data
+            expiration_date = medication_form.expiration_date.data
             if not name:
                 flash('Medication name is required')
                 return redirect(url_for('medications', resident_id=resident_id))
-            
-            # Parse dates
-            start_date = None
-            expiration_date = None
-            if start_date_str:
-                try:
-                    start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
-                except ValueError:
-                    pass
-            if end_date_str:
-                try:
-                    expiration_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
-                except ValueError:
-                    pass
-            
-            new_med = Medication(
-                resident_id=resident_id, 
-                name=name, 
-                dosage=dosage, 
-                frequency=frequency,
-                notes=notes, 
-                form=form_type, 
-                common_uses=common_uses, 
-                start_date=start_date, 
-                expiration_date=expiration_date
-            )
+            new_med = Medication(resident_id=resident_id, name=name, dosage=dosage, frequency=frequency,
+                                 notes=notes, form=form, common_uses=common_uses, start_date=start_date, expiration_date=expiration_date)
             db.session.add(new_med)
-            
             # Add to MedicationCatalog if not already present
             if not MedicationCatalog.query.filter_by(name=name).first():
-                catalog_entry = MedicationCatalog(
-                    name=name, 
-                    default_dosage=dosage, 
-                    default_frequency=frequency,
-                    default_notes=notes, 
-                    form=form_type, 
-                    common_uses=common_uses
-                )
+                catalog_entry = MedicationCatalog(name=name, default_dosage=dosage, default_frequency=frequency,
+                                                 default_notes=notes, form=form, common_uses=common_uses)
                 db.session.add(catalog_entry)
-            
             db.session.commit()
             audit_log = AuditLog(user_id=current_user.id, action=f"Added medication {name} for {resident.name}")
             db.session.add(audit_log)
