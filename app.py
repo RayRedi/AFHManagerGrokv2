@@ -3,6 +3,7 @@ from flask import Flask, render_template, redirect, url_for, request, flash, sen
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, current_user, logout_user, current_user
 from flask_wtf import FlaskForm, CSRFProtect
+from sqlalchemy import text
 from wtforms import StringField, PasswordField, SelectField, TextAreaField, DateField, IntegerField, HiddenField, FileField, SubmitField
 from wtforms.validators import DataRequired, Length
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -401,7 +402,7 @@ def audit_logs():
         flash('Access denied')
         return redirect(url_for('home'))
     logs = AuditLog.query.order_by(AuditLog.timestamp.desc()).all()
-    return render_template('audit_logs.html', logs=logs)
+    return render_template('audit_logs.html', logs=logs, User=User)
 
 @app.route('/users', methods=['GET'])
 @login_required
@@ -1496,20 +1497,21 @@ if __name__ == '__main__':
 
         # Fix medication table column name issue
         try:
+            from sqlalchemy import text
             # First check what columns exist in the medication table
-            result = db.session.execute("PRAGMA table_info(medication)").fetchall()
+            result = db.session.execute(text("PRAGMA table_info(medication)")).fetchall()
             columns = [row[1] for row in result]  # Column names are in index 1
             
             if 'end_date' in columns and 'expiration_date' not in columns:
                 # Rename end_date to expiration_date
                 print("Renaming end_date to expiration_date...")
-                db.session.execute("ALTER TABLE medication RENAME COLUMN end_date TO expiration_date")
+                db.session.execute(text("ALTER TABLE medication RENAME COLUMN end_date TO expiration_date"))
                 db.session.commit()
                 print("Successfully renamed end_date to expiration_date!")
             elif 'expiration_date' not in columns:
                 # Add expiration_date column
                 print("Adding expiration_date column...")
-                db.session.execute("ALTER TABLE medication ADD COLUMN expiration_date DATE")
+                db.session.execute(text("ALTER TABLE medication ADD COLUMN expiration_date DATE"))
                 db.session.commit()
                 print("expiration_date column added successfully!")
             else:
@@ -1519,7 +1521,7 @@ if __name__ == '__main__':
             # If there's still an issue, try to recreate the table
             try:
                 print("Attempting to fix medication table structure...")
-                db.session.execute("""
+                db.session.execute(text("""
                     CREATE TABLE IF NOT EXISTS medication_new (
                         id INTEGER PRIMARY KEY,
                         resident_id INTEGER NOT NULL,
@@ -1533,19 +1535,19 @@ if __name__ == '__main__':
                         _common_uses TEXT,
                         FOREIGN KEY (resident_id) REFERENCES resident(id)
                     )
-                """)
+                """))
                 
                 # Copy data from old table if it exists
-                db.session.execute("""
+                db.session.execute(text("""
                     INSERT INTO medication_new (id, resident_id, name, dosage, frequency, _notes, start_date, expiration_date, form, _common_uses)
                     SELECT id, resident_id, name, dosage, frequency, _notes, start_date, 
                            COALESCE(expiration_date, end_date) as expiration_date, form, _common_uses
                     FROM medication
-                """)
+                """))
                 
                 # Drop old table and rename new one
-                db.session.execute("DROP TABLE medication")
-                db.session.execute("ALTER TABLE medication_new RENAME TO medication")
+                db.session.execute(text("DROP TABLE medication"))
+                db.session.execute(text("ALTER TABLE medication_new RENAME TO medication"))
                 db.session.commit()
                 print("Medication table structure fixed!")
             except Exception as fix_error:
