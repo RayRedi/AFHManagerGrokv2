@@ -635,7 +635,9 @@ def medications_partial(resident_id):
                          medications=medications, 
                          medication_logs=medication_logs,
                          medication_form=medication_form, 
-                         log_form=log_form)
+                         log_form=log_form,
+                         date=date,
+                         timedelta=timedelta)
 
 @app.route('/resident/<int:resident_id>/documents/partial')
 @login_required
@@ -652,7 +654,8 @@ def documents_partial(resident_id):
                          resident=resident, 
                          documents=documents, 
                          expired_documents=expired_documents, 
-                         form=form)
+                         form=form,
+                         date=date)
 
 @app.route('/resident/<int:resident_id>/daily-logs/partial')
 @login_required
@@ -687,7 +690,9 @@ def daily_logs_partial(resident_id):
                          vitals=vitals, 
                          missing_logs=missing_logs, 
                          prev_date=prev_date, 
-                         next_date=next_date)
+                         next_date=next_date,
+                         date=date,
+                         timedelta=timedelta)
 
 @app.route('/resident/<int:resident_id>/incidents/partial')
 @login_required
