@@ -172,6 +172,14 @@ class MedicationCatalog(db.Model):
     def common_uses(self, value):
         self._common_uses = value
 
+class NotificationLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    alert_key = db.Column(db.String(100), nullable=False)
+    alert_type = db.Column(db.String(50), nullable=False)  # '7day', 'expiry', 'expired_notification'
+    sent_date = db.Column(db.Date, nullable=False)
+    
+    __table_args__ = (db.UniqueConstraint('alert_key', 'alert_type'),)
+
 # Import forms
 from forms import FoodIntakeForm, LiquidIntakeForm, BowelMovementForm, UrineOutputForm, IncidentReportForm
 
@@ -326,12 +334,11 @@ def logout():
 @app.route('/')
 @login_required
 def home():
+    from medication_notifications import check_and_send_medication_alerts
+    
     residents = Resident.query.all()
     total_residents = len(residents)
-    alerts = []
     today = date.today()
-    soon_expire_days = 7  # Alert for items expiring within 7 days
-    soon_expire_date = today + timedelta(days=soon_expire_days)
     
     # Chart data for meal trends (last 7 days)
     start_date = today - timedelta(days=7)
@@ -345,26 +352,10 @@ def home():
             date_str = food.date.isoformat()
             if date_str in meal_counts:
                 meal_counts[date_str][food.meal_type] += 1
-        
-        # Check for expired and soon-to-expire documents
-        documents = Document.query.filter_by(resident_id=resident.id).all()
-        for doc in documents:
-            if doc.expiration_date:
-                if doc.expiration_date < today:
-                    alerts.append(f"Expired document: {doc.name} for {resident.name}")
-                    send_alert_email("Expired Document Alert", f"Document {doc.name} for {resident.name} expired on {doc.expiration_date}")
-                elif doc.expiration_date <= soon_expire_date:
-                    alerts.append(f"Document expiring soon: {doc.name} for {resident.name} (expires {doc.expiration_date})")
-        
-        # Check for expired and soon-to-expire medications
-        medications = Medication.query.filter_by(resident_id=resident.id).all()
-        for med in medications:
-            if med.expiration_date:
-                if med.expiration_date < today:
-                    alerts.append(f"Expired medication: {med.name} for {resident.name}")
-                    send_alert_email("Expired Medication Alert", f"Medication {med.name} for {resident.name} expired on {med.expiration_date}")
-                elif med.expiration_date <= soon_expire_date:
-                    alerts.append(f"Medication expiring soon: {med.name} for {resident.name} (expires {med.expiration_date})")
+    
+    # Use smart notification system - only sends emails when appropriate
+    alerts = check_and_send_medication_alerts(db, mail, Medication, Document, Resident)
+    
     chart_labels = [d.isoformat() for d in date_range]
     chart_data = {
         'breakfast': [meal_counts[d]['breakfast'] for d in chart_labels],
