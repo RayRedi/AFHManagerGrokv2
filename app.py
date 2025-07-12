@@ -112,6 +112,7 @@ class Medication(db.Model):
         self._common_uses = value
 
 class MedicationLog(db.Model):
+    __table_args__ = {'extend_existing': True}
     id = db.Column(db.Integer, primary_key=True)
     medication_id = db.Column(db.Integer, db.ForeignKey('medication.id'), nullable=False)
     resident_id = db.Column(db.Integer, db.ForeignKey('resident.id'), nullable=False)
