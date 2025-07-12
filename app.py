@@ -153,6 +153,7 @@ class AuditLog(db.Model):
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
 class MedicationCatalog(db.Model):
+    __table_args__ = {'extend_existing': True}
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
     default_dosage = db.Column(db.String(50))
@@ -340,8 +341,6 @@ def logout():
 @app.route('/')
 @login_required
 def home():
-    from medication_notifications import check_and_send_medication_alerts
-
     residents = Resident.query.all()
     total_residents = len(residents)
     today = date.today()
@@ -359,8 +358,51 @@ def home():
             if date_str in meal_counts:
                 meal_counts[date_str][food.meal_type] += 1
 
-    # Use smart notification system - only sends emails when appropriate
-    alerts = check_and_send_medication_alerts(db, mail, Medication, Document, Resident)
+    # Check for medication and document alerts
+    alerts = []
+    today = date.today()
+    seven_days_out = today + timedelta(days=7)
+    
+    try:
+        # Check medications for alerts
+        medications = Medication.query.all()
+        for med in medications:
+            if not med.expiration_date:
+                continue
+            resident = Resident.query.get(med.resident_id)
+            if not resident:
+                continue
+                
+            if med.expiration_date == today:
+                alerts.append(f"EXPIRED: Medication {med.name} for {resident.name} expired today")
+            elif med.expiration_date == seven_days_out:
+                alerts.append(f"7-DAY WARNING: Medication {med.name} for {resident.name} expires on {med.expiration_date}")
+            elif med.expiration_date < today:
+                alerts.append(f"OVERDUE: Medication {med.name} for {resident.name} expired on {med.expiration_date}")
+            elif med.expiration_date <= seven_days_out:
+                alerts.append(f"Medication expiring soon: {med.name} for {resident.name} (expires {med.expiration_date})")
+        
+        # Check documents for alerts
+        documents = Document.query.all()
+        for doc in documents:
+            if not doc.expiration_date:
+                continue
+            resident = Resident.query.get(doc.resident_id)
+            if not resident:
+                continue
+                
+            if doc.expiration_date == today:
+                alerts.append(f"EXPIRED: Document {doc.name} for {resident.name} expired today")
+            elif doc.expiration_date == seven_days_out:
+                alerts.append(f"7-DAY WARNING: Document {doc.name} for {resident.name} expires on {doc.expiration_date}")
+            elif doc.expiration_date < today:
+                alerts.append(f"OVERDUE: Document {doc.name} for {resident.name} expired on {doc.expiration_date}")
+            elif doc.expiration_date <= seven_days_out:
+                alerts.append(f"Document expiring soon: {doc.name} for {resident.name} (expires {doc.expiration_date})")
+                
+    except Exception as e:
+        print(f"Error checking alerts: {e}")
+        alerts = []
 
     chart_labels = [d.isoformat() for d in date_range]
     chart_data = {

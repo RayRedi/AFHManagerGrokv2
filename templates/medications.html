@@ -1,9 +1,7 @@
 
-{% if not request.headers.get('X-Requested-With') %}
 {% extends "base.html" %}
 {% block title %}Medications - {{ resident.name if resident else 'Unknown Resident' }}{% endblock %}
 {% block content %}
-{% endif %}
 
 <div class="row mb-4">
     <div class="col-12">
@@ -903,6 +901,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-{% if not request.headers.get('X-Requested-With') %}
 {% endblock %}
-{% endif %}
