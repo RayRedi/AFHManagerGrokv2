@@ -20,7 +20,7 @@ def check_and_send_medication_alerts(db, mail, Medication, Document, Resident):
             if not med.expiration_date:
                 continue
                 
-            resident = Resident.query.get(med.resident_id)
+            resident = db.session.get(Resident, med.resident_id)
             if not resident:
                 continue
                 
@@ -64,7 +64,7 @@ def check_and_send_medication_alerts(db, mail, Medication, Document, Resident):
             if not doc.expiration_date:
                 continue
                 
-            resident = Resident.query.get(doc.resident_id)
+            resident = db.session.get(Resident, doc.resident_id)
             if not resident:
                 continue
                 
