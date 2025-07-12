@@ -220,9 +220,9 @@
 /* Main Content Styles */
 .main-content-container {
     margin-left: 0;
-    margin-top: 80px; /* Account for fixed info bar */
+    margin-top: 0px; /* Handled by resident-layout-container */
     padding: 2rem;
-    min-height: calc(100vh - 216px);
+    min-height: calc(100vh - 216px); /* 56px (navbar) + 80px (info bar) + footer height if applicable */
 }
 
 /* Mobile Responsive */
@@ -286,7 +286,7 @@
 
 /* Resident Layout Container */
 .resident-layout-container {
-    margin-top: 80px; /* Space for fixed info bar */
+    margin-top: 136px; /* 56px (navbar) + 80px (info bar) */
     padding: 0;
 }
 
@@ -390,9 +390,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const doc = parser.parseFromString(html, 'text/html');
             
             // Try to find the main content area
-            let contentDiv = doc.querySelector('.container-fluid, .container, main, .card');
-            if (!contentDiv) {
-                contentDiv = doc.body;
+                let contentDiv = doc.querySelector('#main-content .card, #main-content .container-fluid > .row');
+                if (!contentDiv) contentDiv = doc.querySelector('.content-section');
+                if (!contentDiv) contentDiv = doc.body;
+                mainContent.innerHTML = contentDiv.innerHTML;
             }
             
             // Update main content
