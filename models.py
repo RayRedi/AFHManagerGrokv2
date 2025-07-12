@@ -134,6 +134,16 @@ class UrineOutput(db.Model):
     meal_type = db.Column(db.String(20), nullable=False)  # 'breakfast', 'lunch', 'dinner'
     output = db.Column(db.String(20), nullable=False)  # 'Yes', 'No'
 
+class MedicationNotification(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    medication_id = db.Column(db.Integer, db.ForeignKey('medication.id'), nullable=False)
+    warning_sent = db.Column(db.Boolean, default=False)  # 7-day warning sent
+    warning_sent_date = db.Column(db.Date)
+    expiry_sent = db.Column(db.Boolean, default=False)  # Expiration day alert sent
+    expiry_sent_date = db.Column(db.Date)
+    expired_sent = db.Column(db.Boolean, default=False)  # Post-expiration alert sent
+    expired_sent_date = db.Column(db.Date)
+
 class IncidentReport(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     resident_id = db.Column(db.Integer, db.ForeignKey('resident.id'), nullable=False)
