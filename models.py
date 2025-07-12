@@ -181,12 +181,3 @@ class IncidentReport(db.Model):
     @follow_up_notes.setter
     def follow_up_notes(self, value):
         self._follow_up_notes = value
-
-class MedicationNotification(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    medication_id = db.Column(db.Integer, db.ForeignKey('medication.id'), nullable=False)
-    notification_type = db.Column(db.String(20), nullable=False)  # '7_day_warning', 'expiration_day', 'expired'
-    sent_date = db.Column(db.Date, nullable=False)
-    
-    # Ensure we don't send duplicate notifications
-    __table_args__ = (db.UniqueConstraint('medication_id', 'notification_type', name='unique_med_notification'),)
