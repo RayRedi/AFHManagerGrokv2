@@ -1,5 +1,6 @@
 
 from flask_sqlalchemy import SQLAlchemy
+from flask_login import UserMixin
 from sqlalchemy import TypeDecorator, Text
 from sqlalchemy.ext.hybrid import hybrid_property
 from datetime import datetime
@@ -14,6 +15,12 @@ cipher = Fernet(ENCRYPTION_KEY.encode())
 
 # Initialize SQLAlchemy instance
 db = SQLAlchemy()
+
+class User(db.Model, UserMixin):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(50), unique=True, nullable=False)
+    password_hash = db.Column(db.String(100), nullable=False)
+    role = db.Column(db.String(20), nullable=False)  # 'admin' or 'caregiver'
 
 # Custom SQLAlchemy type for encrypted fields
 class EncryptedText(TypeDecorator):
@@ -133,3 +140,51 @@ class UrineOutput(db.Model):
     date = db.Column(db.Date, nullable=False)
     meal_type = db.Column(db.String(20), nullable=False)  # 'breakfast', 'lunch', 'dinner'
     output = db.Column(db.String(20), nullable=False)  # 'Yes', 'No'
+
+class IncidentReport(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    resident_id = db.Column(db.Integer, db.ForeignKey('resident.id'), nullable=False)
+    incident_type = db.Column(db.String(50), nullable=False)
+    severity = db.Column(db.String(20), nullable=False)
+    _description = db.Column(EncryptedText, nullable=False)
+    _immediate_action = db.Column(EncryptedText)
+    injury_occurred = db.Column(db.String(3), nullable=False)
+    medical_attention = db.Column(db.String(3), nullable=False)
+    _witnesses = db.Column(EncryptedText)
+    follow_up_required = db.Column(db.String(3), nullable=False)
+    _follow_up_notes = db.Column(EncryptedText)
+    date_reported = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    reported_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    status = db.Column(db.String(20), default='open')  # 'open', 'in_progress', 'closed'
+
+    @hybrid_property
+    def description(self):
+        return self._description
+
+    @description.setter
+    def description(self, value):
+        self._description = value
+
+    @hybrid_property
+    def immediate_action(self):
+        return self._immediate_action
+
+    @immediate_action.setter
+    def immediate_action(self, value):
+        self._immediate_action = value
+
+    @hybrid_property
+    def witnesses(self):
+        return self._witnesses
+
+    @witnesses.setter
+    def witnesses(self, value):
+        self._witnesses = value
+
+    @hybrid_property
+    def follow_up_notes(self):
+        return self._follow_up_notes
+
+    @follow_up_notes.setter
+    def follow_up_notes(self, value):
+        self._follow_up_notes = value

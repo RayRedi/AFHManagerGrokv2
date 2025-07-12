@@ -1,0 +1,165 @@
+
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1><i class="fas fa-exclamation-triangle text-warning me-2"></i>Incident Reports - {{ resident.name }}</h1>
+                <a href="{{ url_for('resident_profile', resident_id=resident.id) }}" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Profile
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- New Incident Report Form -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-plus me-2"></i>New Incident Report</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    {{ form.incident_type.label(class="form-label fw-semibold") }}
+                                    {{ form.incident_type(class="form-select") }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    {{ form.severity.label(class="form-label fw-semibold") }}
+                                    {{ form.severity(class="form-select") }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            {{ form.description.label(class="form-label fw-semibold") }}
+                            <span class="text-danger">*</span>
+                            {{ form.description(class="form-control", placeholder="Describe the incident in detail...") }}
+                        </div>
+
+                        <div class="form-group mb-3">
+                            {{ form.immediate_action.label(class="form-label fw-semibold") }}
+                            {{ form.immediate_action(class="form-control", placeholder="What immediate action was taken?") }}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    {{ form.injury_occurred.label(class="form-label fw-semibold") }}
+                                    {{ form.injury_occurred(class="form-select") }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    {{ form.medical_attention.label(class="form-label fw-semibold") }}
+                                    {{ form.medical_attention(class="form-select") }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            {{ form.witnesses.label(class="form-label fw-semibold") }}
+                            {{ form.witnesses(class="form-control", placeholder="Names of witnesses, if any") }}
+                        </div>
+
+                        <div class="form-group mb-3">
+                            {{ form.follow_up_required.label(class="form-label fw-semibold") }}
+                            {{ form.follow_up_required(class="form-select") }}
+                        </div>
+
+                        <div class="form-group mb-3">
+                            {{ form.follow_up_notes.label(class="form-label fw-semibold") }}
+                            {{ form.follow_up_notes(class="form-control", placeholder="Additional notes or follow-up actions needed...") }}
+                        </div>
+
+                        <div class="d-grid">
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Existing Incidents -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>Incident History</h5>
+                </div>
+                <div class="card-body">
+                    {% if incidents %}
+                        <div class="incident-list" style="max-height: 600px; overflow-y: auto;">
+                            {% for incident in incidents %}
+                                <div class="incident-item border rounded p-3 mb-3 {% if incident.severity == 'critical' %}border-danger{% elif incident.severity == 'high' %}border-warning{% else %}border-secondary{% endif %}">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <span class="badge bg-{% if incident.severity == 'critical' %}danger{% elif incident.severity == 'high' %}warning{% elif incident.severity == 'medium' %}info{% else %}secondary{% endif %}">
+                                                {{ incident.severity.title() }}
+                                            </span>
+                                            <span class="badge bg-dark ms-1">{{ incident.incident_type.replace('_', ' ').title() }}</span>
+                                        </div>
+                                        <small class="text-muted">{{ incident.date_reported.strftime('%m/%d/%Y %I:%M %p') }}</small>
+                                    </div>
+                                    
+                                    <p class="mb-2"><strong>Description:</strong> {{ incident.description }}</p>
+                                    
+                                    {% if incident.immediate_action %}
+                                        <p class="mb-2"><strong>Immediate Action:</strong> {{ incident.immediate_action }}</p>
+                                    {% endif %}
+                                    
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <small><strong>Injury:</strong> {{ incident.injury_occurred.title() }}</small>
+                                        </div>
+                                        <div class="col-6">
+                                            <small><strong>Medical Attention:</strong> {{ incident.medical_attention.title() }}</small>
+                                        </div>
+                                    </div>
+                                    
+                                    {% if incident.witnesses %}
+                                        <p class="mb-2"><small><strong>Witnesses:</strong> {{ incident.witnesses }}</small></p>
+                                    {% endif %}
+                                    
+                                    {% if incident.follow_up_notes %}
+                                        <p class="mb-2"><small><strong>Follow-up:</strong> {{ incident.follow_up_notes }}</small></p>
+                                    {% endif %}
+                                    
+                                    {% if current_user.role == 'admin' %}
+                                        <div class="mt-2">
+                                            <form method="POST" action="{{ url_for('update_incident_status', incident_id=incident.id) }}" class="d-inline">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <select name="status" class="form-select form-select-sm d-inline w-auto" onchange="this.form.submit()">
+                                                    <option value="open" {% if incident.status == 'open' %}selected{% endif %}>Open</option>
+                                                    <option value="in_progress" {% if incident.status == 'in_progress' %}selected{% endif %}>In Progress</option>
+                                                    <option value="closed" {% if incident.status == 'closed' %}selected{% endif %}>Closed</option>
+                                                </select>
+                                            </form>
+                                            <span class="badge bg-{% if incident.status == 'open' %}danger{% elif incident.status == 'in_progress' %}warning{% else %}success{% endif %} ms-2">
+                                                {{ incident.status.replace('_', ' ').title() }}
+                                            </span>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No incidents reported yet.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

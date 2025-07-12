@@ -56,8 +56,9 @@
 
 <script>
     // Chart.js for Meal Trends
-    const ctx = document.getElementById('mealChart').getContext('2d');
-    new Chart(ctx, {
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('mealChart').getContext('2d');
+        new Chart(ctx, {
         type: 'bar',
         data: {
             labels: {{ chart_labels | tojson }},
@@ -96,6 +97,7 @@
                 tooltip: { enabled: true }
             }
         }
+        });
     });
 </script>
 {% endblock %}

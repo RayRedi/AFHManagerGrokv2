@@ -3,6 +3,7 @@ from flask import Flask, render_template, redirect, url_for, request, flash, sen
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, current_user, logout_user, current_user
 from flask_wtf import FlaskForm, CSRFProtect
+from sqlalchemy import text
 from wtforms import StringField, PasswordField, SelectField, TextAreaField, DateField, IntegerField, HiddenField, FileField, SubmitField
 from wtforms.validators import DataRequired, Length
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -58,7 +59,7 @@ if not ENCRYPTION_KEY:
 cipher = Fernet(ENCRYPTION_KEY.encode())
 
 # Import models and initialize database
-from models import db, Resident, FoodIntake, LiquidIntake, BowelMovement, UrineOutput, Vitals, EncryptedText
+from models import db, User, Resident, FoodIntake, LiquidIntake, BowelMovement, UrineOutput, Vitals, EncryptedText, IncidentReport
 db.init_app(app)
 
 # Initialize other extensions
@@ -71,12 +72,6 @@ login_manager.login_view = 'login'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # Database Models
-class User(db.Model, UserMixin):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(50), unique=True, nullable=False)
-    password_hash = db.Column(db.String(100), nullable=False)
-    role = db.Column(db.String(20), nullable=False)  # 'admin' or 'caregiver'
-
 class DeleteResidentForm(FlaskForm):
     submit = SubmitField('Delete')
 
@@ -88,7 +83,7 @@ class Medication(db.Model):
     frequency = db.Column(db.String(50))
     _notes = db.Column(EncryptedText)
     start_date = db.Column(db.Date)
-    end_date = db.Column(db.Date)
+    expiration_date = db.Column(db.Date)
     form = db.Column(db.String(50))
     _common_uses = db.Column(EncryptedText)
 
@@ -171,6 +166,17 @@ class MedicationCatalog(db.Model):
     def common_uses(self, value):
         self._common_uses = value
 
+class NotificationLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    alert_key = db.Column(db.String(100), nullable=False)
+    alert_type = db.Column(db.String(50), nullable=False)  # '7day', 'expiry', 'expired_notification'
+    sent_date = db.Column(db.Date, nullable=False)
+    
+    __table_args__ = (db.UniqueConstraint('alert_key', 'alert_type'),)
+
+# Import forms
+from forms import FoodIntakeForm, LiquidIntakeForm, BowelMovementForm, UrineOutputForm, IncidentReportForm
+
 # WTForms for CSRF-protected forms
 class LoginForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired()])
@@ -234,7 +240,7 @@ class MedicationForm(FlaskForm):
     form = StringField('Form', validators=[Length(max=50)])
     common_uses = TextAreaField('Common Uses')
     start_date = DateField('Start Date', validators=[DataRequired()])
-    end_date = DateField('Expiration Date', validators=[DataRequired()])
+    expiration_date = DateField('Expiration Date', validators=[DataRequired()])
     submit = SubmitField('Save Medication')
 
 class MedicationLogForm(FlaskForm):
@@ -285,7 +291,7 @@ def send_alert_email(subject, body):
 def utility_processor():
     def get_current_year():
         return datetime.now().year
-    return dict(current_year=get_current_year)
+    return dict(get_current_year=get_current_year)
 
 # User loader for Flask-Login
 @login_manager.user_loader
@@ -322,12 +328,11 @@ def logout():
 @app.route('/')
 @login_required
 def home():
+    from medication_notifications import check_and_send_medication_alerts
+    
     residents = Resident.query.all()
     total_residents = len(residents)
-    alerts = []
     today = date.today()
-    soon_expire_days = 7  # Alert for items expiring within 7 days
-    soon_expire_date = today + timedelta(days=soon_expire_days)
     
     # Chart data for meal trends (last 7 days)
     start_date = today - timedelta(days=7)
@@ -341,26 +346,10 @@ def home():
             date_str = food.date.isoformat()
             if date_str in meal_counts:
                 meal_counts[date_str][food.meal_type] += 1
-        
-        # Check for expired and soon-to-expire documents
-        documents = Document.query.filter_by(resident_id=resident.id).all()
-        for doc in documents:
-            if doc.expiration_date:
-                if doc.expiration_date < today:
-                    alerts.append(f"Expired document: {doc.name} for {resident.name}")
-                    send_alert_email("Expired Document Alert", f"Document {doc.name} for {resident.name} expired on {doc.expiration_date}")
-                elif doc.expiration_date <= soon_expire_date:
-                    alerts.append(f"Document expiring soon: {doc.name} for {resident.name} (expires {doc.expiration_date})")
-        
-        # Check for expired and soon-to-expire medications
-        medications = Medication.query.filter_by(resident_id=resident.id).all()
-        for med in medications:
-            if med.end_date:
-                if med.end_date < today:
-                    alerts.append(f"Expired medication: {med.name} for {resident.name}")
-                    send_alert_email("Expired Medication Alert", f"Medication {med.name} for {resident.name} expired on {med.end_date}")
-                elif med.end_date <= soon_expire_date:
-                    alerts.append(f"Medication expiring soon: {med.name} for {resident.name} (expires {med.end_date})")
+    
+    # Use smart notification system - only sends emails when appropriate
+    alerts = check_and_send_medication_alerts(db, mail, Medication, Document, Resident)
+    
     chart_labels = [d.isoformat() for d in date_range]
     chart_data = {
         'breakfast': [meal_counts[d]['breakfast'] for d in chart_labels],
@@ -398,7 +387,7 @@ def audit_logs():
         flash('Access denied')
         return redirect(url_for('home'))
     logs = AuditLog.query.order_by(AuditLog.timestamp.desc()).all()
-    return render_template('audit_logs.html', logs=logs)
+    return render_template('audit_logs.html', logs=logs, User=User)
 
 @app.route('/users', methods=['GET'])
 @login_required
@@ -621,6 +610,170 @@ def delete_resident(resident_id):
 def resident_profile(resident_id):
     resident = Resident.query.get_or_404(resident_id)
     return render_template('resident_profile.html', resident=resident)
+
+@app.route('/resident/<int:resident_id>/medications', methods=['GET', 'POST'])
+@login_required
+def medications(resident_id):
+    return redirect(url_for('resident_profile', resident_id=resident_id))
+
+@app.route('/resident/<int:resident_id>/medications/partial', methods=['GET', 'POST'])
+@login_required
+def medications_partial(resident_id):
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Access denied'}), 403
+
+    resident = Resident.query.get_or_404(resident_id)
+    medications = Medication.query.filter_by(resident_id=resident_id).all()
+    medication_form = MedicationForm()
+    log_form = MedicationLogForm()
+    log_form.medication_id.choices = [(med.id, med.name) for med in medications]
+
+    if request.method == 'POST':
+        if medication_form.validate_on_submit() and 'add_medication' in request.form:
+            name = sanitize_input(medication_form.name.data)
+            dosage = sanitize_input(medication_form.dosage.data)
+            frequency = sanitize_input(medication_form.frequency.data)
+            notes = sanitize_input(medication_form.notes.data)
+            form = sanitize_input(medication_form.form.data)
+            common_uses = sanitize_input(medication_form.common_uses.data)
+            start_date = medication_form.start_date.data
+            expiration_date = medication_form.expiration_date.data
+            if not name:
+                flash('Medication name is required')
+                return redirect(url_for('resident_profile', resident_id=resident_id))
+            new_med = Medication(resident_id=resident_id, name=name, dosage=dosage, frequency=frequency,
+                                 notes=notes, form=form, common_uses=common_uses, start_date=start_date, expiration_date=expiration_date)
+            db.session.add(new_med)
+            # Add to MedicationCatalog if not already present
+            if not MedicationCatalog.query.filter_by(name=name).first():
+                catalog_entry = MedicationCatalog(name=name, default_dosage=dosage, default_frequency=frequency,
+                                                 default_notes=notes, form=form, common_uses=common_uses)
+                db.session.add(catalog_entry)
+            db.session.commit()
+            audit_log = AuditLog(user_id=current_user.id, action=f"Added medication {name} for {resident.name}")
+            db.session.add(audit_log)
+            db.session.commit()
+            flash('Medication added successfully.')
+        elif log_form.validate_on_submit() and 'log_dose' in request.form:
+            medication_id = log_form.medication_id.data
+            time = datetime.strptime(log_form.time.data, '%H:%M').time()
+            med_name = Medication.query.get(medication_id).name
+            new_log = MedicationLog(medication_id=medication_id, resident_id=resident_id, date=date.today(), time=time, administered=True)
+            db.session.add(new_log)
+            db.session.commit()
+            audit_log = AuditLog(user_id=current_user.id, action=f"Logged dose for {med_name} for {resident.name}")
+            db.session.add(audit_log)
+            db.session.commit()
+            flash('Dose logged successfully.')
+        elif 'delete_medication' in request.form:
+            medication_id = request.form['medication_id']
+            medication = Medication.query.get_or_404(medication_id)
+            med_name = medication.name
+            db.session.delete(medication)
+            db.session.commit()
+            audit_log = AuditLog(user_id=current_user.id, action=f"Deleted medication {med_name} for {resident.name}")
+            db.session.add(audit_log)
+            db.session.commit()
+            flash('Medication deleted successfully.')
+        return redirect(url_for('resident_profile', resident_id=resident_id))
+
+    medication_logs = MedicationLog.query.filter_by(resident_id=resident_id).all()
+    
+    return render_template('medications_partial.html', 
+                         resident=resident, 
+                         medications=medications, 
+                         medication_logs=medication_logs,
+                         medication_form=medication_form, 
+                         log_form=log_form,
+                         date=date,
+                         timedelta=timedelta)
+
+@app.route('/resident/<int:resident_id>/documents/partial')
+@login_required
+def documents_partial(resident_id):
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Access denied'}), 403
+
+    resident = Resident.query.get_or_404(resident_id)
+    documents = Document.query.filter_by(resident_id=resident_id).all()
+    form = DocumentForm()
+    expired_documents = [doc for doc in documents if doc.expiration_date and doc.expiration_date < date.today()]
+    
+    return render_template('documents_partial.html', 
+                         resident=resident, 
+                         documents=documents, 
+                         expired_documents=expired_documents, 
+                         form=form,
+                         date=date)
+
+@app.route('/resident/<int:resident_id>/daily-logs/partial')
+@login_required
+def daily_logs_partial(resident_id):
+    resident = Resident.query.get_or_404(resident_id)
+    date_str = request.args.get('date', date.today().isoformat())
+    log_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+
+    food_intakes = FoodIntake.query.filter_by(resident_id=resident_id, date=log_date).all()
+    liquid_intakes = LiquidIntake.query.filter_by(resident_id=resident_id, date=log_date).all()
+    bowel_movements = BowelMovement.query.filter_by(resident_id=resident_id, date=log_date).all()
+    urine_outputs = UrineOutput.query.filter_by(resident_id=resident_id, date=log_date).all()
+    vitals = Vitals.query.filter_by(resident_id=resident_id, date=log_date, meal_type='breakfast').first()
+
+    missing_logs = []
+    meal_types = ['breakfast', 'lunch', 'dinner']
+    logged_meals = [food.meal_type for food in food_intakes]
+    for meal in meal_types:
+        if meal not in logged_meals:
+            missing_logs.append(f"Missing {meal} log")
+
+    prev_date = (log_date - timedelta(days=1)).isoformat()
+    next_date = (log_date + timedelta(days=1)).isoformat()
+    
+    return render_template('daily_logs_partial.html', 
+                         resident=resident, 
+                         log_date=log_date,
+                         food_intakes=food_intakes, 
+                         liquid_intakes=liquid_intakes,
+                         bowel_movements=bowel_movements, 
+                         urine_outputs=urine_outputs,
+                         vitals=vitals, 
+                         missing_logs=missing_logs, 
+                         prev_date=prev_date, 
+                         next_date=next_date,
+                         date=date,
+                         timedelta=timedelta)
+
+@app.route('/resident/<int:resident_id>/incidents/partial')
+@login_required
+def incidents_partial(resident_id):
+    if current_user.role not in ['admin', 'caregiver']:
+        return jsonify({'error': 'Access denied'}), 403
+
+    resident = Resident.query.get_or_404(resident_id)
+    form = IncidentReportForm()
+    incidents = IncidentReport.query.filter_by(resident_id=resident_id).order_by(IncidentReport.date_reported.desc()).all()
+    
+    return render_template('incidents_partial.html', 
+                         resident=resident, 
+                         incidents=incidents, 
+                         form=form)
+
+@app.route('/resident/<int:resident_id>/edit/partial')
+@login_required
+def edit_resident_partial(resident_id):
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Access denied'}), 403
+    
+    resident = Resident.query.get_or_404(resident_id)
+    form = AddResidentForm()
+    form.name.data = resident.name
+    form.dob.data = resident.dob
+    form.medical_info.data = resident.medical_info
+    form.emergency_contact.data = resident.emergency_contact
+    
+    return render_template('edit_resident_partial.html', 
+                         resident=resident, 
+                         form=form)
 @app.route('/search_medications')
 def search_medications():
     query = request.args.get('q', '')
@@ -1044,71 +1197,7 @@ def daily_logs(resident_id):
                           vitals=vitals, missing_logs=missing_logs, prev_date=prev_date, next_date=next_date,
                           food_form=food_form, liquid_form=liquid_form, bowel_form=bowel_form, urine_form=urine_form)
 
-@app.route('/resident/<int:resident_id>/medications', methods=['GET', 'POST'])
-@login_required
-def medications(resident_id):
-    if current_user.role != 'admin':
-        flash('Access denied')
-        return redirect(url_for('home'))
 
-    resident = Resident.query.get_or_404(resident_id)
-    medications = Medication.query.filter_by(resident_id=resident_id).all()
-    medication_form = MedicationForm()
-    log_form = MedicationLogForm()
-    log_form.medication_id.choices = [(med.id, med.name) for med in medications]
-
-    if request.method == 'POST':
-        if medication_form.validate_on_submit() and 'add_medication' in request.form:
-            name = sanitize_input(medication_form.name.data)
-            dosage = sanitize_input(medication_form.dosage.data)
-            frequency = sanitize_input(medication_form.frequency.data)
-            notes = sanitize_input(medication_form.notes.data)
-            form = sanitize_input(medication_form.form.data)
-            common_uses = sanitize_input(medication_form.common_uses.data)
-            start_date = medication_form.start_date.data
-            end_date = medication_form.end_date.data
-            if not name:
-                flash('Medication name is required')
-                return redirect(url_for('medications', resident_id=resident_id))
-            new_med = Medication(resident_id=resident_id, name=name, dosage=dosage, frequency=frequency,
-                                 notes=notes, form=form, common_uses=common_uses, start_date=start_date, end_date=end_date)
-            db.session.add(new_med)
-            # Add to MedicationCatalog if not already present
-            if not MedicationCatalog.query.filter_by(name=name).first():
-                catalog_entry = MedicationCatalog(name=name, default_dosage=dosage, default_frequency=frequency,
-                                                 default_notes=notes, form=form, common_uses=common_uses)
-                db.session.add(catalog_entry)
-            db.session.commit()
-            audit_log = AuditLog(user_id=current_user.id, action=f"Added medication {name} for {resident.name}")
-            db.session.add(audit_log)
-            db.session.commit()
-            flash('Medication added successfully.')
-        elif log_form.validate_on_submit() and 'log_dose' in request.form:
-            medication_id = log_form.medication_id.data
-            time = datetime.strptime(log_form.time.data, '%H:%M').time()
-            med_name = Medication.query.get(medication_id).name
-            new_log = MedicationLog(medication_id=medication_id, resident_id=resident_id, date=date.today(), time=time, administered=True)
-            db.session.add(new_log)
-            db.session.commit()
-            audit_log = AuditLog(user_id=current_user.id, action=f"Logged dose for {med_name} for {resident.name}")
-            db.session.add(audit_log)
-            db.session.commit()
-            flash('Dose logged successfully.')
-        elif 'delete_medication' in request.form:
-            medication_id = request.form['medication_id']
-            medication = Medication.query.get_or_404(medication_id)
-            med_name = medication.name
-            db.session.delete(medication)
-            db.session.commit()
-            audit_log = AuditLog(user_id=current_user.id, action=f"Deleted medication {med_name} for {resident.name}")
-            db.session.add(audit_log)
-            db.session.commit()
-            flash('Medication deleted successfully.')
-        return redirect(url_for('medications', resident_id=resident_id))
-
-    medication_logs = MedicationLog.query.filter_by(resident_id=resident_id).all()
-    return render_template('medications.html', resident=resident, medications=medications, medication_logs=medication_logs,
-                          medication_form=medication_form, log_form=log_form)
 
 @app.route('/resident/<int:resident_id>/documents', methods=['GET', 'POST'])
 @login_required
@@ -1298,6 +1387,105 @@ def report(resident_id):
                           medication_logs=medication_logs, chart_labels=json.dumps(chart_labels),
                           chart_data=json.dumps(chart_data), form=form)
 
+@app.route('/resident/<int:resident_id>/incidents', methods=['GET', 'POST'])
+@login_required
+def incidents(resident_id):
+    if current_user.role not in ['admin', 'caregiver']:
+        flash('Access denied')
+        return redirect(url_for('home'))
+
+    resident = Resident.query.get_or_404(resident_id)
+    form = IncidentReportForm()
+    
+    if form.validate_on_submit():
+        incident = IncidentReport(
+            resident_id=resident_id,
+            incident_type=form.incident_type.data,
+            severity=form.severity.data,
+            description=sanitize_input(form.description.data),
+            immediate_action=sanitize_input(form.immediate_action.data),
+            injury_occurred=form.injury_occurred.data,
+            medical_attention=form.medical_attention.data,
+            witnesses=sanitize_input(form.witnesses.data),
+            follow_up_required=form.follow_up_required.data,
+            follow_up_notes=sanitize_input(form.follow_up_notes.data),
+            reported_by=current_user.id
+        )
+        db.session.add(incident)
+        db.session.commit()
+        
+        # Send alert email for high severity incidents
+        if incident.severity in ['high', 'critical']:
+            send_alert_email(
+                f"Critical Incident Report - {resident.name}",
+                f"A {incident.severity} severity {incident.incident_type} incident was reported for {resident.name}.\n\n"
+                f"Description: {incident.description}\n"
+                f"Immediate Action: {incident.immediate_action}\n"
+                f"Reported by: {current_user.username}"
+            )
+        
+        audit_log = AuditLog(user_id=current_user.id, action=f"Created incident report for {resident.name}")
+        db.session.add(audit_log)
+        db.session.commit()
+        
+        flash('Incident report submitted successfully.')
+        return redirect(url_for('incidents', resident_id=resident_id))
+    
+    # Get all incidents for this resident
+    incidents = IncidentReport.query.filter_by(resident_id=resident_id).order_by(IncidentReport.date_reported.desc()).all()
+    
+    return render_template('incidents.html', resident=resident, incidents=incidents, form=form)
+
+@app.route('/incident/<int:incident_id>/update_status', methods=['POST'])
+@login_required
+def update_incident_status(incident_id):
+    if current_user.role != 'admin':
+        flash('Access denied')
+        return redirect(url_for('home'))
+    
+    incident = IncidentReport.query.get_or_404(incident_id)
+    new_status = request.form.get('status')
+    
+    if new_status in ['open', 'in_progress', 'closed']:
+        incident.status = new_status
+        db.session.commit()
+        
+        audit_log = AuditLog(user_id=current_user.id, action=f"Updated incident #{incident.id} status to {new_status}")
+        db.session.add(audit_log)
+        db.session.commit()
+        
+        flash('Incident status updated successfully.')
+    else:
+        flash('Invalid status.')
+    
+    return redirect(url_for('incidents', resident_id=incident.resident_id))
+
+@app.route('/incidents/all')
+@login_required
+def all_incidents():
+    if current_user.role != 'admin':
+        flash('Access denied')
+        return redirect(url_for('home'))
+    
+    # Get incidents with filters
+    status_filter = request.args.get('status', 'all')
+    severity_filter = request.args.get('severity', 'all')
+    type_filter = request.args.get('type', 'all')
+    
+    query = IncidentReport.query
+    
+    if status_filter != 'all':
+        query = query.filter_by(status=status_filter)
+    if severity_filter != 'all':
+        query = query.filter_by(severity=severity_filter)
+    if type_filter != 'all':
+        query = query.filter_by(incident_type=type_filter)
+    
+    incidents = query.order_by(IncidentReport.date_reported.desc()).all()
+    
+    return render_template('all_incidents.html', incidents=incidents, 
+                         status_filter=status_filter, severity_filter=severity_filter, type_filter=type_filter)
+
 # Run the app and initialize database with sample data
 if __name__ == '__main__':
     with app.app_context():
@@ -1392,33 +1580,64 @@ if __name__ == '__main__':
         db.session.commit()
         print("Medication sync complete!")
 
-        # Migrate end_date to expiration_date column if needed
+        # Fix medication table column name issue
         try:
-            # Test if expiration_date column exists
-            db.session.execute("SELECT expiration_date FROM medication LIMIT 1")
-            print("expiration_date column already exists")
-        except Exception as e:
-            if "no such column" in str(e):
-                print("Migrating medication table to use expiration_date...")
-                try:
-                    # Check if end_date column exists
-                    try:
-                        db.session.execute("SELECT end_date FROM medication LIMIT 1")
-                        # end_date exists, rename it to expiration_date
-                        print("Renaming end_date to expiration_date...")
-                        db.session.execute("ALTER TABLE medication RENAME COLUMN end_date TO expiration_date")
-                        db.session.commit()
-                        print("Successfully renamed end_date to expiration_date!")
-                    except:
-                        # end_date doesn't exist, create expiration_date
-                        print("Adding expiration_date column...")
-                        db.session.execute("ALTER TABLE medication ADD COLUMN expiration_date DATE")
-                        db.session.commit()
-                        print("expiration_date column added successfully!")
-                except Exception as alter_error:
-                    print(f"Error updating medication table: {alter_error}")
+            from sqlalchemy import text
+            # First check what columns exist in the medication table
+            result = db.session.execute(text("PRAGMA table_info(medication)")).fetchall()
+            columns = [row[1] for row in result]  # Column names are in index 1
+            
+            if 'end_date' in columns and 'expiration_date' not in columns:
+                # Rename end_date to expiration_date
+                print("Renaming end_date to expiration_date...")
+                db.session.execute(text("ALTER TABLE medication RENAME COLUMN end_date TO expiration_date"))
+                db.session.commit()
+                print("Successfully renamed end_date to expiration_date!")
+            elif 'expiration_date' not in columns:
+                # Add expiration_date column
+                print("Adding expiration_date column...")
+                db.session.execute(text("ALTER TABLE medication ADD COLUMN expiration_date DATE"))
+                db.session.commit()
+                print("expiration_date column added successfully!")
             else:
-                print(f"Unexpected error: {e}")
+                print("Medication table is already up to date")
+        except Exception as e:
+            print(f"Error updating medication table: {e}")
+            # If there's still an issue, try to recreate the table
+            try:
+                print("Attempting to fix medication table structure...")
+                db.session.execute(text("""
+                    CREATE TABLE IF NOT EXISTS medication_new (
+                        id INTEGER PRIMARY KEY,
+                        resident_id INTEGER NOT NULL,
+                        name VARCHAR(100) NOT NULL,
+                        dosage VARCHAR(50),
+                        frequency VARCHAR(50),
+                        _notes TEXT,
+                        start_date DATE,
+                        expiration_date DATE,
+                        form VARCHAR(50),
+                        _common_uses TEXT,
+                        FOREIGN KEY (resident_id) REFERENCES resident(id)
+                    )
+                """))
+                
+                # Copy data from old table if it exists
+                db.session.execute(text("""
+                    INSERT INTO medication_new (id, resident_id, name, dosage, frequency, _notes, start_date, expiration_date, form, _common_uses)
+                    SELECT id, resident_id, name, dosage, frequency, _notes, start_date, 
+                           COALESCE(expiration_date, end_date) as expiration_date, form, _common_uses
+                    FROM medication
+                """))
+                
+                # Drop old table and rename new one
+                db.session.execute(text("DROP TABLE medication"))
+                db.session.execute(text("ALTER TABLE medication_new RENAME TO medication"))
+                db.session.commit()
+                print("Medication table structure fixed!")
+            except Exception as fix_error:
+                print(f"Error fixing medication table: {fix_error}")
+                db.session.rollback()
 
     import os
     port = int(os.environ.get('PORT', 8080))
