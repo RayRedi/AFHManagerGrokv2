@@ -8,7 +8,6 @@
     </div>
 
     <!-- Add New Medication Wizard Button -->
-    {% if current_user.role == 'admin' %}
     <div class="card shadow-sm mb-4">
         <div class="card-body text-center">
             <h3 class="card-title fw-bold text-dark mb-3">Add New Medication</h3>
@@ -58,10 +57,8 @@
             </div>
         </div>
     </div>
-    {% endif %}
 
     <!-- Log Dose -->
-    {% if current_user.role == 'admin' and medications %}
     <div class="card shadow-sm mb-4">
         <div class="card-body">
             <h3 class="card-title fw-bold text-dark">Log Dose</h3>
@@ -89,7 +86,6 @@
             </form>
         </div>
     </div>
-    {% endif %}
 
     <!-- Medication List -->
     <div class="card shadow-sm">
@@ -117,7 +113,6 @@
                                     <td>{{ med.start_date.strftime('%Y-%m-%d') if med.start_date else 'Not set' }}</td>
                                     <td>{{ med.end_date.strftime('%Y-%m-%d') if med.end_date else 'Not set' }}</td>
                                     <td>
-                                        {% if current_user.role == 'admin' %}
                                         <form method="POST" action="{{ url_for('medications', resident_id=resident.id) }}" style="display: inline;">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                             <input type="hidden" name="medication_id" value="{{ med.id }}">
@@ -125,7 +120,6 @@
                                                 <i class="fas fa-trash"></i>
                                             </button>
                                         </form>
-                                        {% endif %}
                                     </td>
                                 </tr>
                             {% endfor %}
