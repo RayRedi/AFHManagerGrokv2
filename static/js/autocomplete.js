@@ -217,7 +217,7 @@ function initializeMedicationFrequency() {
     const frequencyInput = document.getElementById('frequency');
     const timePickersContainer = document.getElementById('time-pickers-container');
     const timeInputsContainer = document.getElementById('time-inputs');
-    
+
     // Frequency button mappings
     const frequencyMap = {
         'once-daily': 'Daily',
@@ -226,7 +226,7 @@ function initializeMedicationFrequency() {
         'four-times-daily': 'Four times daily',
         'as-needed': 'As needed'
     };
-    
+
     // Check if required elements exist
     if (!frequencyButtons.length || !frequencyInput || !timePickersContainer || !timeInputsContainer) {
         return;
@@ -256,20 +256,20 @@ function initializeMedicationFrequency() {
     function updateTimeInputs(frequencyType, times) {
         // Clear existing time inputs
         timeInputsContainer.innerHTML = '';
-        
+
         if (times > 0) {
             timePickersContainer.style.display = 'block';
-            
+
             // Get preset times for this frequency
             const presetTimes = FREQUENCY_PRESETS[frequencyType] || [];
-            
+
             // Create time inputs with presets
             for (let i = 1; i <= times; i++) {
                 const presetTime = presetTimes[i - 1] || '';
                 const timeDiv = createTimeInput(i, presetTime);
                 timeInputsContainer.appendChild(timeDiv);
             }
-            
+
             // Add helpful text about presets
             if (presetTimes.length > 0) {
                 const helpText = document.createElement('div');
@@ -292,26 +292,26 @@ function initializeMedicationFrequency() {
     frequencyButtons.forEach(button => {
         button.addEventListener('click', function(e) {
             e.preventDefault();
-            
+
             // Remove active class from all buttons
             frequencyButtons.forEach(btn => {
                 btn.classList.remove('btn-primary');
                 btn.classList.add('btn-outline-primary');
             });
-            
+
             // Add active class to clicked button
             this.classList.remove('btn-outline-primary');
             this.classList.add('btn-primary');
-            
+
             // Get frequency data
             const frequencyType = this.getAttribute('data-frequency');
             const times = parseInt(this.getAttribute('data-times'));
-            
+
             // Update hidden frequency input
             if (frequencyMap[frequencyType]) {
                 frequencyInput.value = frequencyMap[frequencyType];
             }
-            
+
             // Update time inputs with presets
             updateTimeInputs(frequencyType, times);
         });
@@ -333,7 +333,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('name') && document.getElementById('medication-dropdown')) {
         initializeMedicationSearch('name', 'medication-dropdown');
     }
-    
+
     // Initialize medication frequency functionality
     initializeMedicationFrequency();
 });
+
+function initializeAutoComplete(inputId, dropdownId, url, options = {}) {
+    const input = document.getElementById(inputId);
+    const dropdown = document.getElementById(dropdownId);
+
+    if (!input || !dropdown) {
+        // Silently skip if elements don't exist - this is normal for different pages
+        return;
+    }
+}

@@ -73,6 +73,7 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # Database Models
 class User(db.Model, UserMixin):
+    __table_args__ = {'extend_existing': True}
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password_hash = db.Column(db.String(100), nullable=False)
@@ -82,6 +83,7 @@ class DeleteResidentForm(FlaskForm):
     submit = SubmitField('Delete')
 
 class Medication(db.Model):
+    __table_args__ = {'extend_existing': True}
     id = db.Column(db.Integer, primary_key=True)
     resident_id = db.Column(db.Integer, db.ForeignKey('resident.id'), nullable=False)
     name = db.Column(db.String(100), nullable=False)
@@ -118,6 +120,7 @@ class MedicationLog(db.Model):
     administered = db.Column(db.Boolean, default=False)
 
 class Document(db.Model):
+    __table_args__ = {'extend_existing': True}
     id = db.Column(db.Integer, primary_key=True)
     resident_id = db.Column(db.Integer, db.ForeignKey('resident.id'), nullable=False)
     _filename = db.Column(EncryptedText, nullable=False)
@@ -142,6 +145,7 @@ class Document(db.Model):
         self._name = value
 
 class AuditLog(db.Model):
+    __table_args__ = {'extend_existing': True}
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     action = db.Column(db.String(100), nullable=False)
@@ -173,11 +177,12 @@ class MedicationCatalog(db.Model):
         self._common_uses = value
 
 class NotificationLog(db.Model):
+    __table_args__ = {'extend_existing': True}
     id = db.Column(db.Integer, primary_key=True)
     alert_key = db.Column(db.String(100), nullable=False)
     alert_type = db.Column(db.String(50), nullable=False)  # '7day', 'expiry', 'expired_notification'
     sent_date = db.Column(db.Date, nullable=False)
-    
+
     __table_args__ = (db.UniqueConstraint('alert_key', 'alert_type'),)
 
 # Import forms
@@ -279,7 +284,7 @@ def validate_password(password):
     if not re.search(r'[0-9]', password):
         return False, "Password must contain at least one number"
     return True, ""
-    
+
 class DeleteResidentForm(FlaskForm):
     submit = SubmitField('Delete')
 
@@ -335,27 +340,27 @@ def logout():
 @login_required
 def home():
     from medication_notifications import check_and_send_medication_alerts
-    
+
     residents = Resident.query.all()
     total_residents = len(residents)
     today = date.today()
-    
+
     # Chart data for meal trends (last 7 days)
     start_date = today - timedelta(days=7)
     end_date = today
     date_range = [start_date + timedelta(days=x) for x in range((end_date - start_date).days + 1)]
     meal_counts = {d.isoformat(): {'breakfast': 0, 'lunch': 0, 'dinner': 0} for d in date_range}
-    
+
     for resident in residents:
         food_intakes = FoodIntake.query.filter_by(resident_id=resident.id).filter(FoodIntake.date.between(start_date, end_date)).all()
         for food in food_intakes:
             date_str = food.date.isoformat()
             if date_str in meal_counts:
                 meal_counts[date_str][food.meal_type] += 1
-    
+
     # Use smart notification system - only sends emails when appropriate
     alerts = check_and_send_medication_alerts(db, mail, Medication, Document, Resident)
-    
+
     chart_labels = [d.isoformat() for d in date_range]
     chart_data = {
         'breakfast': [meal_counts[d]['breakfast'] for d in chart_labels],
@@ -372,12 +377,12 @@ def medication_suggestions():
     query = request.args.get('term', '')
     if not query:
         return jsonify([])
-    
+
     # Search in MedicationCatalog
     suggestions = MedicationCatalog.query.filter(
         MedicationCatalog.name.ilike(f'%{query}%')
     ).order_by(MedicationCatalog.name).limit(20).all()
-    
+
     results = []
     for med in suggestions:
         try:
@@ -393,7 +398,7 @@ def medication_suggestions():
         except Exception as e:
             # Skip medications that can't be decrypted
             continue
-    
+
     return jsonify(results)
 
 @app.route('/audit_logs')
@@ -605,7 +610,7 @@ def delete_resident(resident_id):
                 # Handle AJAX requests from resident profile page
                 if request.headers.get('X-CSRFToken') and request.headers.get('Content-Type') == 'application/json':
                     return jsonify({'success': True, 'message': 'Resident deleted'})
-                
+
                 flash('Resident deleted successfully.', 'success')
                 return redirect(url_for('home'))
             except Exception as e:
@@ -631,13 +636,13 @@ def search_medications():
     query = request.args.get('q', '')
     if not query:
         return jsonify([])
-    
+
     # Search in MedicationCatalog which contains all the medications
     suggestions = MedicationCatalog.query.filter(
         (MedicationCatalog.name.ilike(f'%{query}%')) |
         (MedicationCatalog.common_uses.ilike(f'%{query}%'))
     ).order_by(MedicationCatalog.name).limit(20).all()
-    
+
     return jsonify([
         {
             'label': f'{med.name}' + (f' - {med.common_uses[:50]}...' if med.common_uses else ''),
@@ -687,7 +692,7 @@ def daily_log_wizard(resident_id):
         {'id': 5, 'name': 'Urine Output', 'meal': 'lunch'},
         {'id': 2, 'name': 'Food Intake', 'meal': 'dinner'},
         {'id': 3, 'name': 'Liquid Intake', 'meal': 'dinner'},
-        {'id': 4, 'name': 'Bowel Movement', 'meal': 'dinner'},
+        {'id': 4, 'name': '<previous_generation>Bowel Movement', 'meal': 'dinner'},
         {'id': 5, 'name': 'Urine Output', 'meal': 'dinner'}
     ]
     current_step_index = next(i for i, s in enumerate(steps) if s['id'] == current_step and s['meal'] == current_meal)
@@ -832,7 +837,7 @@ def daily_log_submit(resident_id):
         return jsonify({'error': 'Access denied'}), 403
 
     resident = Resident.query.get_or_404(resident_id)
-    
+
     # Handle both JSON and form data
     if request.is_json:
         data = request.get_json()
@@ -845,10 +850,10 @@ def daily_log_submit(resident_id):
             form_data = json.loads(form_data_str)
         except (json.JSONDecodeError, TypeError):
             return jsonify({'error': 'Invalid form data format'}), 400
-    
+
     if not meal_type:
         return jsonify({'error': 'Meal type is required'}), 400
-    
+
     today = date.today()
 
     try:
@@ -898,7 +903,7 @@ def daily_log_submit(resident_id):
                 )
                 db.session.add(liquid)
                 liquid_saved = True
-        
+
         # Handle single liquid intake if no multiple entries
         if not liquid_saved and form_data.get('liquid_intake'):
             liquid = LiquidIntake(
@@ -1081,11 +1086,11 @@ def medications(resident_id):
             common_uses = sanitize_input(request.form.get('common_uses', ''))
             start_date_str = request.form.get('start_date', '')
             end_date_str = request.form.get('end_date', '')
-            
+
             if not name:
                 flash('Medication name is required')
                 return redirect(url_for('medications', resident_id=resident_id))
-            
+
             # Parse dates
             start_date = None
             expiration_date = None
@@ -1099,7 +1104,7 @@ def medications(resident_id):
                     expiration_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
                 except ValueError:
                     pass
-            
+
             new_med = Medication(
                 resident_id=resident_id, 
                 name=name, 
@@ -1112,7 +1117,7 @@ def medications(resident_id):
                 expiration_date=expiration_date
             )
             db.session.add(new_med)
-            
+
             # Add to MedicationCatalog if not already present
             if not MedicationCatalog.query.filter_by(name=name).first():
                 catalog_entry = MedicationCatalog(
@@ -1124,7 +1129,7 @@ def medications(resident_id):
                     common_uses=common_uses
                 )
                 db.session.add(catalog_entry)
-            
+
             db.session.commit()
             audit_log = AuditLog(user_id=current_user.id, action=f"Added medication {name} for {resident.name}")
             db.session.add(audit_log)
@@ -1301,7 +1306,7 @@ def report(resident_id):
                 y = 750
                 pdf.setFont("Helvetica", 12)
         y -= 20
-        pdf.drawString(100, y, "Bowel Movements")
+        pdf.drawString(100,y, "Bowel Movements")
         y -= 20
         pdf.drawString(100, y, "Bowel Movements")
         y -= 20
@@ -1354,7 +1359,7 @@ def incidents(resident_id):
 
     resident = Resident.query.get_or_404(resident_id)
     form = IncidentReportForm()
-    
+
     if form.validate_on_submit():
         incident = IncidentReport(
             resident_id=resident_id,
@@ -1371,7 +1376,7 @@ def incidents(resident_id):
         )
         db.session.add(incident)
         db.session.commit()
-        
+
         # Send alert email for high severity incidents
         if incident.severity in ['high', 'critical']:
             send_alert_email(
@@ -1381,17 +1386,17 @@ def incidents(resident_id):
                 f"Immediate Action: {incident.immediate_action}\n"
                 f"Reported by: {current_user.username}"
             )
-        
+
         audit_log = AuditLog(user_id=current_user.id, action=f"Created incident report for {resident.name}")
         db.session.add(audit_log)
         db.session.commit()
-        
+
         flash('Incident report submitted successfully.')
         return redirect(url_for('incidents', resident_id=resident_id))
-    
+
     # Get all incidents for this resident
     incidents = IncidentReport.query.filter_by(resident_id=resident_id).order_by(IncidentReport.date_reported.desc()).all()
-    
+
     return render_template('incidents.html', resident=resident, incidents=incidents, form=form)
 
 @app.route('/incident/<int:incident_id>/update_status', methods=['POST'])
@@ -1400,22 +1405,22 @@ def update_incident_status(incident_id):
     if current_user.role != 'admin':
         flash('Access denied')
         return redirect(url_for('home'))
-    
+
     incident = IncidentReport.query.get_or_404(incident_id)
     new_status = request.form.get('status')
-    
+
     if new_status in ['open', 'in_progress', 'closed']:
         incident.status = new_status
         db.session.commit()
-        
+
         audit_log = AuditLog(user_id=current_user.id, action=f"Updated incident #{incident.id} status to {new_status}")
         db.session.add(audit_log)
         db.session.commit()
-        
+
         flash('Incident status updated successfully.')
     else:
         flash('Invalid status.')
-    
+
     return redirect(url_for('incidents', resident_id=incident.resident_id))
 
 @app.route('/incidents/all')
@@ -1424,23 +1429,23 @@ def all_incidents():
     if current_user.role != 'admin':
         flash('Access denied')
         return redirect(url_for('home'))
-    
+
     # Get incidents with filters
     status_filter = request.args.get('status', 'all')
     severity_filter = request.args.get('severity', 'all')
     type_filter = request.args.get('type', 'all')
-    
+
     query = IncidentReport.query
-    
+
     if status_filter != 'all':
         query = query.filter_by(status=status_filter)
     if severity_filter != 'all':
         query = query.filter_by(severity=severity_filter)
     if type_filter != 'all':
         query = query.filter_by(incident_type=type_filter)
-    
+
     incidents = query.order_by(IncidentReport.date_reported.desc()).all()
-    
+
     return render_template('all_incidents.html', incidents=incidents, 
                          status_filter=status_filter, severity_filter=severity_filter, type_filter=type_filter)
 
@@ -1544,7 +1549,7 @@ if __name__ == '__main__':
             # First check what columns exist in the medication table
             result = db.session.execute(text("PRAGMA table_info(medication)")).fetchall()
             columns = [row[1] for row in result]  # Column names are in index 1
-            
+
             if 'end_date' in columns and 'expiration_date' not in columns:
                 # Rename end_date to expiration_date
                 print("Renaming end_date to expiration_date...")
@@ -1579,7 +1584,7 @@ if __name__ == '__main__':
                         FOREIGN KEY (resident_id) REFERENCES resident(id)
                     )
                 """))
-                
+
                 # Copy data from old table if it exists
                 db.session.execute(text("""
                     INSERT INTO medication_new (id, resident_id, name, dosage, frequency, _notes, start_date, expiration_date, form, _common_uses)
@@ -1587,7 +1592,7 @@ if __name__ == '__main__':
                            COALESCE(expiration_date, end_date) as expiration_date, form, _common_uses
                     FROM medication
                 """))
-                
+
                 # Drop old table and rename new one
                 db.session.execute(text("DROP TABLE medication"))
                 db.session.execute(text("ALTER TABLE medication_new RENAME TO medication"))

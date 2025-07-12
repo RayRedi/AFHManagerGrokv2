@@ -1,4 +1,10 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
+
+{% block title %}Report{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
 
 {% block content %}
     <h1>Report for {{ resident.name }} ({{ start_date }} to {{ end_date }})</h1>
@@ -78,7 +84,6 @@
             </ul>
         </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         const ctx = document.getElementById('mealChart').getContext('2d');
         new Chart(ctx, {
