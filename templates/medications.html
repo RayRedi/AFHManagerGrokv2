@@ -1,19 +1,28 @@
 {% extends "base.html" %}
-{% block title %}Medications - {{ resident.name }}{% endblock %}
+{% block title %}Medications - {{ resident.name if resident else 'Unknown Resident' }}{% endblock %}
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
-        <h1 class="display-5 fw-bold text-dark">Medications for {{ resident.name }}</h1>
+        <h1 class="display-5 fw-bold text-dark">Medications for {{ resident.name if resident else 'Unknown Resident' }}</h1>
         <p class="lead text-muted">Manage medications and dosage schedules.</p>
+        {% if not resident %}
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Warning: No resident data found. Please check the URL and try again.
+            </div>
+        {% endif %}
     </div>
 </div>
 
 <!-- Add New Medication Wizard Button -->
 <div class="card shadow-sm mb-4">
-    <div class="card-body text-center">
-        <h3 class="card-title fw-bold text-dark mb-3">Add New Medication</h3>
-        <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#medicationWizardModal" style="background: linear-gradient(135deg, #6b48ff 0%, #8b5cf6 100%); border: none; font-weight: 600;">
-            <i class="fas fa-plus me-2"></i>Start Medication Wizard
+    <div class="card-body text-center py-4">
+        <h3 class="card-title fw-bold text-dark mb-3">
+            <i class="fas fa-pills me-2 text-primary"></i>Add New Medication
+        </h3>
+        <p class="text-muted mb-4">Use our guided wizard to add medications with proper dosing and scheduling</p>
+        <button type="button" class="btn btn-primary btn-lg px-4 py-3" data-bs-toggle="modal" data-bs-target="#medicationWizardModal" style="background: linear-gradient(135deg, #6b48ff 0%, #8b5cf6 100%); border: none; font-weight: 600; font-size: 1.1rem;">
+            <i class="fas fa-magic me-2"></i>Start Medication Wizard
         </button>
     </div>
 </div>
