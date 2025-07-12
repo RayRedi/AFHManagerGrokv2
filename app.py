@@ -92,10 +92,6 @@ class Medication(db.Model):
     expiration_date = db.Column(db.Date)
     form = db.Column(db.String(50))
     _common_uses = db.Column(EncryptedText)
-    # Notification Tracking
-    expiry_warn_sent = db.Column(db.Boolean, default=False)
-    expiry_email_sent = db.Column(db.Boolean, default=False)
-    already_expired_notified = db.Column(db.Boolean, default=False)
 
     @hybrid_property
     def notes(self):
@@ -275,7 +271,7 @@ def validate_password(password):
     if not re.search(r'[0-9]', password):
         return False, "Password must contain at least one number"
     return True, ""
-
+    
 class DeleteResidentForm(FlaskForm):
     submit = SubmitField('Delete')
 
@@ -336,20 +332,20 @@ def home():
     today = date.today()
     soon_expire_days = 7  # Alert for items expiring within 7 days
     soon_expire_date = today + timedelta(days=soon_expire_days)
-
+    
     # Chart data for meal trends (last 7 days)
     start_date = today - timedelta(days=7)
     end_date = today
     date_range = [start_date + timedelta(days=x) for x in range((end_date - start_date).days + 1)]
     meal_counts = {d.isoformat(): {'breakfast': 0, 'lunch': 0, 'dinner': 0} for d in date_range}
-
+    
     for resident in residents:
         food_intakes = FoodIntake.query.filter_by(resident_id=resident.id).filter(FoodIntake.date.between(start_date, end_date)).all()
         for food in food_intakes:
             date_str = food.date.isoformat()
             if date_str in meal_counts:
                 meal_counts[date_str][food.meal_type] += 1
-
+        
         # Check for expired and soon-to-expire documents
         documents = Document.query.filter_by(resident_id=resident.id).all()
         for doc in documents:
@@ -359,7 +355,16 @@ def home():
                     send_alert_email("Expired Document Alert", f"Document {doc.name} for {resident.name} expired on {doc.expiration_date}")
                 elif doc.expiration_date <= soon_expire_date:
                     alerts.append(f"Document expiring soon: {doc.name} for {resident.name} (expires {doc.expiration_date})")
-
+        
+        # Check for expired and soon-to-expire medications
+        medications = Medication.query.filter_by(resident_id=resident.id).all()
+        for med in medications:
+            if med.expiration_date:
+                if med.expiration_date < today:
+                    alerts.append(f"Expired medication: {med.name} for {resident.name}")
+                    send_alert_email("Expired Medication Alert", f"Medication {med.name} for {resident.name} expired on {med.expiration_date}")
+                elif med.expiration_date <= soon_expire_date:
+                    alerts.append(f"Medication expiring soon: {med.name} for {resident.name} (expires {med.expiration_date})")
     chart_labels = [d.isoformat() for d in date_range]
     chart_data = {
         'breakfast': [meal_counts[d]['breakfast'] for d in chart_labels],
@@ -599,7 +604,7 @@ def delete_resident(resident_id):
                 # Handle AJAX requests from resident profile page
                 if request.headers.get('X-CSRFToken') and request.headers.get('Content-Type') == 'application/json':
                     return jsonify({'success': True, 'message': 'Resident deleted'})
-
+                
                 flash('Resident deleted successfully.', 'success')
                 return redirect(url_for('home'))
             except Exception as e:
@@ -818,7 +823,7 @@ def daily_log_submit(resident_id):
         return jsonify({'error': 'Access denied'}), 403
 
     resident = Resident.query.get_or_404(resident_id)
-
+    
     # Handle both JSON and form data
     if request.is_json:
         data = request.get_json()
@@ -831,10 +836,10 @@ def daily_log_submit(resident_id):
             form_data = json.loads(form_data_str)
         except (json.JSONDecodeError, TypeError):
             return jsonify({'error': 'Invalid form data format'}), 400
-
+    
     if not meal_type:
         return jsonify({'error': 'Meal type is required'}), 400
-
+    
     today = date.today()
 
     try:
@@ -884,7 +889,7 @@ def daily_log_submit(resident_id):
                 )
                 db.session.add(liquid)
                 liquid_saved = True
-
+        
         # Handle single liquid intake if no multiple entries
         if not liquid_saved and form_data.get('liquid_intake'):
             liquid = LiquidIntake(
@@ -1306,7 +1311,7 @@ def incidents(resident_id):
 
     resident = Resident.query.get_or_404(resident_id)
     form = IncidentReportForm()
-
+    
     if form.validate_on_submit():
         incident = IncidentReport(
             resident_id=resident_id,
@@ -1323,7 +1328,7 @@ def incidents(resident_id):
         )
         db.session.add(incident)
         db.session.commit()
-
+        
         # Send alert email for high severity incidents
         if incident.severity in ['high', 'critical']:
             send_alert_email(
@@ -1333,17 +1338,17 @@ def incidents(resident_id):
                 f"Immediate Action: {incident.immediate_action}\n"
                 f"Reported by: {current_user.username}"
             )
-
+        
         audit_log = AuditLog(user_id=current_user.id, action=f"Created incident report for {resident.name}")
         db.session.add(audit_log)
         db.session.commit()
-
+        
         flash('Incident report submitted successfully.')
         return redirect(url_for('incidents', resident_id=resident_id))
-
+    
     # Get all incidents for this resident
     incidents = IncidentReport.query.filter_by(resident_id=resident_id).order_by(IncidentReport.date_reported.desc()).all()
-
+    
     return render_template('incidents.html', resident=resident, incidents=incidents, form=form)
 
 @app.route('/incident/<int:incident_id>/update_status', methods=['POST'])
@@ -1352,22 +1357,22 @@ def update_incident_status(incident_id):
     if current_user.role != 'admin':
         flash('Access denied')
         return redirect(url_for('home'))
-
+    
     incident = IncidentReport.query.get_or_404(incident_id)
     new_status = request.form.get('status')
-
+    
     if new_status in ['open', 'in_progress', 'closed']:
         incident.status = new_status
         db.session.commit()
-
+        
         audit_log = AuditLog(user_id=current_user.id, action=f"Updated incident #{incident.id} status to {new_status}")
         db.session.add(audit_log)
         db.session.commit()
-
+        
         flash('Incident status updated successfully.')
     else:
         flash('Invalid status.')
-
+    
     return redirect(url_for('incidents', resident_id=incident.resident_id))
 
 @app.route('/incidents/all')
@@ -1376,77 +1381,25 @@ def all_incidents():
     if current_user.role != 'admin':
         flash('Access denied')
         return redirect(url_for('home'))
-
+    
     # Get incidents with filters
     status_filter = request.args.get('status', 'all')
     severity_filter = request.args.get('severity', 'all')
     type_filter = request.args.get('type', 'all')
-
+    
     query = IncidentReport.query
-
+    
     if status_filter != 'all':
         query = query.filter_by(status=status_filter)
     if severity_filter != 'all':
         query = query.filter_by(severity=severity_filter)
     if type_filter != 'all':
         query = query.filter_by(incident_type=type_filter)
-
+    
     incidents = query.order_by(IncidentReport.date_reported.desc()).all()
-
+    
     return render_template('all_incidents.html', incidents=incidents, 
                          status_filter=status_filter, severity_filter=severity_filter, type_filter=type_filter)
-
-@app.route('/admin/check-expiry')
-@login_required
-def manual_expiry_check():
-    if current_user.role != 'admin':
-        flash('Access denied')
-        return redirect(url_for('home'))
-
-    check_medication_expiry()
-    flash('Medication expiry check completed.')
-    return redirect(url_for('home'))
-
-# Background task to check medication expiry
-def check_medication_expiry():
-    today = date.today()
-    seven_days_out = today + timedelta(days=7)
-    expired_medications = Medication.query.filter(Medication.expiration_date <= today).all()
-    expiring_soon_medications = Medication.query.filter(Medication.expiration_date == seven_days_out).all()
-
-    # Handle already expired medications (missed notifications)
-    for med in expired_medications:
-        if not med.already_expired_notified:
-            resident = Resident.query.get(med.resident_id)
-            send_alert_email(
-                "Expired Medication Alert",
-                f"Medication {med.name} for {resident.name} expired on {med.expiration_date}"
-            )
-            med.already_expired_notified = True
-            db.session.commit()
-
-    # Handle medications expiring in 7 days
-    for med in expiring_soon_medications:
-        if not med.expiry_warn_sent:
-            resident = Resident.query.get(med.resident_id)
-            send_alert_email(
-                "Medication Expiring Soon",
-                f"Medication {med.name} for {resident.name} expires in 7 days on {med.expiration_date}"
-            )
-            med.expiry_warn_sent = True
-            db.session.commit()
-
-    # Handle medications expiring today
-    today_expiring_medications = Medication.query.filter(Medication.expiration_date == today).all()
-    for med in today_expiring_medications:
-        if not med.expiry_email_sent:
-            resident = Resident.query.get(med.resident_id)
-            send_alert_email(
-                "Medication Expiring Today",
-                f"Medication {med.name} for {resident.name} expires today, {med.expiration_date}"
-            )
-            med.expiry_email_sent = True
-            db.session.commit()
 
 # Run the app and initialize database with sample data
 if __name__ == '__main__':
@@ -1548,7 +1501,7 @@ if __name__ == '__main__':
             # First check what columns exist in the medication table
             result = db.session.execute(text("PRAGMA table_info(medication)")).fetchall()
             columns = [row[1] for row in result]  # Column names are in index 1
-
+            
             if 'end_date' in columns and 'expiration_date' not in columns:
                 # Rename end_date to expiration_date
                 print("Renaming end_date to expiration_date...")
@@ -1583,7 +1536,7 @@ if __name__ == '__main__':
                         FOREIGN KEY (resident_id) REFERENCES resident(id)
                     )
                 """))
-
+                
                 # Copy data from old table if it exists
                 db.session.execute(text("""
                     INSERT INTO medication_new (id, resident_id, name, dosage, frequency, _notes, start_date, expiration_date, form, _common_uses)
@@ -1591,7 +1544,7 @@ if __name__ == '__main__':
                            COALESCE(expiration_date, end_date) as expiration_date, form, _common_uses
                     FROM medication
                 """))
-
+                
                 # Drop old table and rename new one
                 db.session.execute(text("DROP TABLE medication"))
                 db.session.execute(text("ALTER TABLE medication_new RENAME TO medication"))
@@ -1600,10 +1553,6 @@ if __name__ == '__main__':
             except Exception as fix_error:
                 print(f"Error fixing medication table: {fix_error}")
                 db.session.rollback()
-
-    # Run expiry check on startup
-    with app.app_context():
-        check_medication_expiry()
 
     import os
     port = int(os.environ.get('PORT', 8080))
