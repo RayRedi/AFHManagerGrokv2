@@ -19,6 +19,7 @@ from sqlalchemy import TypeDecorator, Text
 from sqlalchemy.ext.hybrid import hybrid_property
 import sqlite3
 from medications_data import ELDERLY_MEDS
+from medication_notifications import check_medication_expiration_notifications, get_medication_alerts_for_display
 # Initialize Flask app
 app = Flask(__name__)
 # app.py
@@ -275,7 +276,7 @@ def validate_password(password):
 class DeleteResidentForm(FlaskForm):
     submit = SubmitField('Delete')
 
-# Send email notification
+# Send email notification for documents only
 def send_alert_email(subject, body):
     try:
         msg = Message(subject, recipients=[app.config['MAIL_DEFAULT_SENDER']])
@@ -283,6 +284,46 @@ def send_alert_email(subject, body):
         mail.send(msg)
     except Exception as e:
         flash(f'Failed to send email: {str(e)}')
+
+# Global variable to track if daily medication check has been done
+daily_medication_check_done = False
+
+@app.route('/admin/check-medication-notifications')
+@login_required
+def manual_medication_check():
+    """Manual trigger for medication notification check (admin only)"""
+    if current_user.role != 'admin':
+        flash('Access denied')
+        return redirect(url_for('home'))
+    
+    notifications_sent = check_medication_expiration_notifications(app, mail)
+    
+    if notifications_sent:
+        flash(f'Medication notifications sent: {len(notifications_sent)} alerts')
+        audit_log = AuditLog(user_id=current_user.id, action=f"Manually triggered medication notification check - {len(notifications_sent)} alerts sent")
+        db.session.add(audit_log)
+        db.session.commit()
+    else:
+        flash('No medication notifications needed at this time')
+    
+    return redirect(url_for('home'))
+
+def perform_daily_medication_check():
+    """Perform daily medication notification check"""
+    global daily_medication_check_done
+    today = date.today()
+    
+    # Only run once per day
+    if not daily_medication_check_done:
+        try:
+            notifications_sent = check_medication_expiration_notifications(app, mail)
+            daily_medication_check_done = True
+            print(f"Daily medication check completed. Notifications sent: {len(notifications_sent) if notifications_sent else 0}")
+            return notifications_sent
+        except Exception as e:
+            print(f"Error during daily medication check: {e}")
+            return None
+    return None
 
 # Context processor for current year
 @app.context_processor
@@ -328,7 +369,6 @@ def logout():
 def home():
     residents = Resident.query.all()
     total_residents = len(residents)
-    alerts = []
     today = date.today()
     soon_expire_days = 7  # Alert for items expiring within 7 days
     soon_expire_date = today + timedelta(days=soon_expire_days)
@@ -339,6 +379,9 @@ def home():
     date_range = [start_date + timedelta(days=x) for x in range((end_date - start_date).days + 1)]
     meal_counts = {d.isoformat(): {'breakfast': 0, 'lunch': 0, 'dinner': 0} for d in date_range}
     
+    # Get alerts for display (without sending emails)
+    alerts = []
+    
     for resident in residents:
         food_intakes = FoodIntake.query.filter_by(resident_id=resident.id).filter(FoodIntake.date.between(start_date, end_date)).all()
         for food in food_intakes:
@@ -346,25 +389,20 @@ def home():
             if date_str in meal_counts:
                 meal_counts[date_str][food.meal_type] += 1
         
-        # Check for expired and soon-to-expire documents
+        # Check for expired and soon-to-expire documents (display only, no emails)
         documents = Document.query.filter_by(resident_id=resident.id).all()
         for doc in documents:
             if doc.expiration_date:
                 if doc.expiration_date < today:
                     alerts.append(f"Expired document: {doc.name} for {resident.name}")
-                    send_alert_email("Expired Document Alert", f"Document {doc.name} for {resident.name} expired on {doc.expiration_date}")
                 elif doc.expiration_date <= soon_expire_date:
                     alerts.append(f"Document expiring soon: {doc.name} for {resident.name} (expires {doc.expiration_date})")
-        
-        # Check for expired and soon-to-expire medications
-        medications = Medication.query.filter_by(resident_id=resident.id).all()
-        for med in medications:
-            if med.expiration_date:
-                if med.expiration_date < today:
-                    alerts.append(f"Expired medication: {med.name} for {resident.name}")
-                    send_alert_email("Expired Medication Alert", f"Medication {med.name} for {resident.name} expired on {med.expiration_date}")
-                elif med.expiration_date <= soon_expire_date:
-                    alerts.append(f"Medication expiring soon: {med.name} for {resident.name} (expires {med.expiration_date})")
+    
+    # Get medication alerts for display (without sending emails)
+    medication_alerts = get_medication_alerts_for_display()
+    for alert in medication_alerts:
+        alerts.append(alert['message'])
+    
     chart_labels = [d.isoformat() for d in date_range]
     chart_data = {
         'breakfast': [meal_counts[d]['breakfast'] for d in chart_labels],
@@ -394,6 +432,14 @@ def medication_suggestions():
         'form': med.form or '',
         'common_uses': med.common_uses or ''
     } for med in suggestions])
+
+@app.route('/admin/tools')
+@login_required
+def admin_tools():
+    if current_user.role != 'admin':
+        flash('Access denied')
+        return redirect(url_for('home'))
+    return render_template('admin_tools.html')
 
 @app.route('/audit_logs')
 @login_required
@@ -1494,8 +1540,12 @@ if __name__ == '__main__':
                 db.session.add(catalog_entry)
         db.session.commit()
         print("Medication sync complete!")
+        
+        # Perform daily medication notification check on startup
+        print("Performing daily medication notification check...")
+        perform_daily_medication_check()
 
-        # Fix medication table column name issue
+        # Fix medication table column name issue and add notification tracking
         try:
             from sqlalchemy import text
             # First check what columns exist in the medication table
@@ -1514,8 +1564,18 @@ if __name__ == '__main__':
                 db.session.execute(text("ALTER TABLE medication ADD COLUMN expiration_date DATE"))
                 db.session.commit()
                 print("expiration_date column added successfully!")
-            else:
-                print("Medication table is already up to date")
+            
+            # Add notification tracking columns if they don't exist
+            if 'seven_day_warning_sent' not in columns:
+                print("Adding notification tracking columns...")
+                db.session.execute(text("ALTER TABLE medication ADD COLUMN seven_day_warning_sent BOOLEAN DEFAULT FALSE"))
+                db.session.execute(text("ALTER TABLE medication ADD COLUMN expiration_notification_sent BOOLEAN DEFAULT FALSE"))
+                db.session.execute(text("ALTER TABLE medication ADD COLUMN expired_notification_sent BOOLEAN DEFAULT FALSE"))
+                db.session.execute(text("ALTER TABLE medication ADD COLUMN last_notification_check DATE"))
+                db.session.commit()
+                print("Notification tracking columns added successfully!")
+            
+            print("Medication table is up to date")
         except Exception as e:
             print(f"Error updating medication table: {e}")
             # If there's still an issue, try to recreate the table
@@ -1533,6 +1593,10 @@ if __name__ == '__main__':
                         expiration_date DATE,
                         form VARCHAR(50),
                         _common_uses TEXT,
+                        seven_day_warning_sent BOOLEAN DEFAULT FALSE,
+                        expiration_notification_sent BOOLEAN DEFAULT FALSE,
+                        expired_notification_sent BOOLEAN DEFAULT FALSE,
+                        last_notification_check DATE,
                         FOREIGN KEY (resident_id) REFERENCES resident(id)
                     )
                 """))
