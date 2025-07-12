@@ -33,13 +33,12 @@
             </div>
         </div>
     </div>
-
     <!-- Lunch Card -->
     <div class="col-12 col-md-4">
         <div class="card meal-card h-100 shadow-sm" onclick="openMealWizard('lunch')">
             <div class="card-body text-center">
                 <div class="meal-icon mb-3">
-                    <i class="fas fa-sun" style="font-size: 3rem; color: #fd7e14;"></i>
+                    <i class="fas fa-sun" style="font-size: 3rem; color: #ff8c00;"></i>
                 </div>
                 <h3 class="card-title fw-bold">Lunch</h3>
                 <div class="meal-progress mb-3">
@@ -56,7 +55,6 @@
             </div>
         </div>
     </div>
-
     <!-- Dinner Card -->
     <div class="col-12 col-md-4">
         <div class="card meal-card h-100 shadow-sm" onclick="openMealWizard('dinner')">
@@ -537,7 +535,7 @@ class DailyLogWizard {
         try {
             const csrfToken = document.querySelector('[name=csrf_token]')?.value || 
                              document.querySelector('meta[name="csrf-token"]')?.content;
-            
+
             const payload = {
                 meal_type: this.currentMeal,
                 form_data: this.formData
@@ -561,7 +559,7 @@ class DailyLogWizard {
             });
 
             const result = await response.json();
-            
+
             if (response.ok && result.success) {
                 alert(result.message || 'Daily log submitted successfully!');
                 location.reload();
