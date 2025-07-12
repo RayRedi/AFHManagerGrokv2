@@ -9,37 +9,48 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def check_and_send_medication_alerts():
+def check_and_send_medication_alerts(db, mail, Medication, Document, Resident):
     """Check for medications that need alerts and send notifications"""
     try:
-        # Database connection
-        engine = create_engine('sqlite:///afh.db')
+        from datetime import date
+        today = date.today()
+        seven_days_later = today + timedelta(days=7)
+        
+        # Check for medications expiring within 7 days
+        expiring_medications = Medication.query.filter(
+            Medication.expiration_date <= seven_days_later,
+            Medication.expiration_date >= today
+        ).all()
+        
+        # Check for expired documents
+        expired_documents = Document.query.filter(
+            Document.expiration_date < today
+        ).all()
+        
+        alerts = []
+        
+        # Add medication alerts
+        for med in expiring_medications:
+            resident = Resident.query.get(med.resident_id)
+            days_until_expiry = (med.expiration_date - today).days
+            if days_until_expiry == 0:
+                alert_text = f"{med.name} for {resident.name} expires today"
+            else:
+                alert_text = f"{med.name} for {resident.name} expires in {days_until_expiry} days"
+            alerts.append(alert_text)
+        
+        # Add document alerts
+        for doc in expired_documents:
+            resident = Resident.query.get(doc.resident_id)
+            days_expired = (today - doc.expiration_date).days
+            alert_text = f"Document '{doc.name}' for {resident.name} expired {days_expired} days ago"
+            alerts.append(alert_text)
+        
+        return alerts
 
-        # Get current time
-        now = datetime.now()
-
-        # Query for medications that need alerts
-        with engine.connect() as conn:
-            # Check for medications expiring soon (within 7 days)
-            expiring_query = text("""
-                SELECT m.name, m.expiration_date, r.name as resident_name
-                FROM medication m
-                JOIN resident r ON m.resident_id = r.id
-                WHERE m.expiration_date <= :expiry_date
-                AND m.expiration_date >= :today
-            """)
-
-            expiry_date = (now + timedelta(days=7)).date()
-            expiring_meds = conn.execute(expiring_query, {
-                'expiry_date': expiry_date,
-                'today': now.date()
-            }).fetchall()
-
-            if expiring_meds:
-                send_expiration_alerts(expiring_meds)
-
-    except Exception as e:
+        except Exception as e:
         logger.error(f"Error checking medication alerts: {e}")
+        return []
 
 def send_expiration_alerts(medications):
     """Send email alerts for expiring medications"""
