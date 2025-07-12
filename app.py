@@ -375,19 +375,26 @@ def medication_suggestions():
     
     # Search in MedicationCatalog
     suggestions = MedicationCatalog.query.filter(
-        (MedicationCatalog.name.ilike(f'%{query}%')) |
-        (MedicationCatalog.common_uses.ilike(f'%{query}%'))
+        MedicationCatalog.name.ilike(f'%{query}%')
     ).order_by(MedicationCatalog.name).limit(20).all()
     
-    return jsonify([{
-        'id': med.id,
-        'name': med.name,
-        'dosage': med.default_dosage or '',
-        'frequency': med.default_frequency or '',
-        'notes': med.default_notes or '',
-        'form': med.form or '',
-        'common_uses': med.common_uses or ''
-    } for med in suggestions])
+    results = []
+    for med in suggestions:
+        try:
+            results.append({
+                'id': med.id,
+                'name': med.name,
+                'dosage': med.default_dosage or '',
+                'frequency': med.default_frequency or '',
+                'notes': med.default_notes or '',
+                'form': med.form or '',
+                'common_uses': med.common_uses or ''
+            })
+        except Exception as e:
+            # Skip medications that can't be decrypted
+            continue
+    
+    return jsonify(results)
 
 @app.route('/audit_logs')
 @login_required
