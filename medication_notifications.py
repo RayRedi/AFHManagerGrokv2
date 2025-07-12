@@ -48,7 +48,7 @@ def check_and_send_medication_alerts(db, mail, Medication, Document, Resident):
         
         return alerts
 
-        except Exception as e:
+    except Exception as e:
         logger.error(f"Error checking medication alerts: {e}")
         return []
 
