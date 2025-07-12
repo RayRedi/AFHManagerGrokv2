@@ -183,12 +183,10 @@ class MedicationWizard {
         document.getElementById('medicationWizardModal').addEventListener('shown.bs.modal', () => {
             this.showStep(1);
             this.updateProgress();
-            if (typeof initializeMedicationSearch === 'function') {
-                // Initialize autocomplete for medication search
-                setTimeout(() => {
-                    initializeMedicationSearch('wizard-med-search', 'wizard-medication-dropdown');
-                }, 100);
-            }
+            // Initialize autocomplete for medication search
+            setTimeout(() => {
+                this.initializeWizardAutocomplete();
+            }, 200);
         });
 
         // Reset wizard when modal closes
@@ -249,7 +247,7 @@ class MedicationWizard {
                             <input type="text" class="form-control form-control-lg" id="wizard-med-search" 
                                    placeholder="Type medication name..." autocomplete="off">
                         </div>
-                        <div id="wizard-medication-dropdown" class="dropdown-suggestions" style="display: none;"></div>
+                        <div id="wizard-medication-dropdown" class="dropdown-suggestions border rounded shadow-sm bg-white position-absolute w-100" style="display: none; z-index: 1000; max-height: 200px; overflow-y: auto;"></div>
                     </div>
                     
                     <div id="wizard-medication-details" class="medication-preview mb-4" style="display: none;">
@@ -712,6 +710,130 @@ class MedicationWizard {
         this.currentStep = 1;
         this.formData = {};
         this.updateProgress();
+    }
+
+    initializeWizardAutocomplete() {
+        const searchInput = document.getElementById('wizard-med-search');
+        const dropdown = document.getElementById('wizard-medication-dropdown');
+        
+        if (!searchInput || !dropdown) {
+            console.log('Wizard autocomplete elements not found');
+            return;
+        }
+
+        let selectedIndex = -1;
+
+        const searchMedications = async (query) => {
+            if (query.length < 2) {
+                dropdown.style.display = 'none';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/medication-suggestions?term=${encodeURIComponent(query)}`);
+                const suggestions = await response.json();
+                
+                dropdown.innerHTML = '';
+                
+                if (suggestions.length === 0) {
+                    dropdown.style.display = 'none';
+                    return;
+                }
+
+                suggestions.forEach((med, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'dropdown-suggestion-item p-2 border-bottom';
+                    item.style.cursor = 'pointer';
+                    item.innerHTML = `
+                        <div class="fw-semibold">${med.name}</div>
+                        ${med.common_uses ? `<small class="text-muted">${med.common_uses}</small>` : ''}
+                    `;
+                    
+                    item.addEventListener('click', () => {
+                        this.selectMedication(med);
+                        dropdown.style.display = 'none';
+                    });
+                    
+                    item.addEventListener('mouseenter', () => {
+                        selectedIndex = index;
+                        this.updateSelection();
+                    });
+                    
+                    dropdown.appendChild(item);
+                });
+
+                dropdown.style.display = 'block';
+            } catch (error) {
+                console.error('Error fetching medication suggestions:', error);
+                dropdown.style.display = 'none';
+            }
+        };
+
+        searchInput.addEventListener('input', (e) => {
+            searchMedications(e.target.value);
+        });
+
+        searchInput.addEventListener('keydown', (e) => {
+            const items = dropdown.getElementsByClassName('dropdown-suggestion-item');
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                this.updateSelection();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, -1);
+                this.updateSelection();
+            } else if (e.key === 'Enter' && selectedIndex >= 0) {
+                e.preventDefault();
+                items[selectedIndex].click();
+            } else if (e.key === 'Escape') {
+                dropdown.style.display = 'none';
+            }
+        });
+
+        // Hide dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+    }
+
+    updateSelection() {
+        const items = document.getElementsByClassName('dropdown-suggestion-item');
+        Array.from(items).forEach((item, index) => {
+            if (index === selectedIndex) {
+                item.style.backgroundColor = '#e9ecef';
+            } else {
+                item.style.backgroundColor = '';
+            }
+        });
+    }
+
+    selectMedication(med) {
+        const searchInput = document.getElementById('wizard-med-search');
+        const detailsDiv = document.getElementById('wizard-medication-details');
+        const detailsContent = document.getElementById('wizard-details-content');
+        
+        if (searchInput) {
+            searchInput.value = med.name;
+            searchInput.classList.add('is-valid');
+        }
+        
+        // Store medication data
+        this.formData.selectedMedication = med;
+        
+        // Show medication details
+        if (detailsDiv && detailsContent) {
+            detailsContent.innerHTML = `
+                <div><strong>Medication:</strong> ${med.name}</div>
+                ${med.common_uses ? `<div><strong>Common Uses:</strong> ${med.common_uses}</div>` : ''}
+                ${med.dosage ? `<div><strong>Default Dosage:</strong> ${med.dosage}</div>` : ''}
+                ${med.frequency ? `<div><strong>Default Frequency:</strong> ${med.frequency}</div>` : ''}
+            `;
+            detailsDiv.style.display = 'block';
+        }
     }
 }
 
