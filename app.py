@@ -619,27 +619,19 @@ def resident_profile(resident_id):
 @app.route('/search_medications')
 def search_medications():
     query = request.args.get('q', '')
-    if not query:
-        return jsonify([])
-    
-    # Search in MedicationCatalog which contains all the medications
-    suggestions = MedicationCatalog.query.filter(
-        (MedicationCatalog.name.ilike(f'%{query}%')) |
-        (MedicationCatalog.common_uses.ilike(f'%{query}%'))
-    ).order_by(MedicationCatalog.name).limit(20).all()
-    
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute('''
+        SELECT brand_name, generic_name FROM medications
+        WHERE brand_name LIKE ? OR generic_name LIKE ?
+        LIMIT 10
+    ''', (f'%{query}%', f'%{query}%'))
+    results = c.fetchall()
+    conn.close()
+
     return jsonify([
-        {
-            'label': f'{med.name}' + (f' - {med.common_uses[:50]}...' if med.common_uses else ''),
-            'brand_name': med.name,
-            'generic_name': med.name,
-            'name': med.name,
-            'dosage': med.default_dosage or '',
-            'frequency': med.default_frequency or '',
-            'notes': med.default_notes or '',
-            'form': med.form or '',
-            'common_uses': med.common_uses or ''
-        } for med in suggestions
+        {'label': f'{brand} ({generic})', 'brand_name': brand, 'generic_name': generic}
+        for brand, generic in results
     ])
 
 
