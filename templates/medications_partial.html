@@ -1,3 +1,4 @@
+
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="fas fa-pills me-2"></i>Medications for {{ resident.name }}</h2>
@@ -61,7 +62,7 @@
     <div class="card shadow-sm mb-4">
         <div class="card-body">
             <h3 class="card-title fw-bold text-dark">Log Dose</h3>
-            <form method="POST" action="{{ url_for('medications_partial', resident_id=resident.id) }}">
+            <form method="POST" action="{{ url_for('medications', resident_id=resident.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="row">
                     <div class="col-12 col-md-6 mb-3">
@@ -117,7 +118,7 @@
                             </div>
                             {% if current_user.role == 'admin' %}
                             <div class="card-footer">
-                                <form method="POST" action="{{ url_for('medications_partial', resident_id=resident.id) }}" style="display: inline;">
+                                <form method="POST" action="{{ url_for('medications', resident_id=resident.id) }}" style="display: inline;">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                     <input type="hidden" name="medication_id" value="{{ medication.id }}">
                                     <button type="submit" name="delete_medication" class="btn btn-sm btn-outline-danger" 
@@ -192,29 +193,31 @@ class MedicationWizard {
             { id: 4, title: 'Additional Information', required: false },
             { id: 5, title: 'Review & Save', required: true }
         ];
-
+        
         this.initializeWizard();
         this.setupEventListeners();
     }
 
     initializeWizard() {
         // Initialize autocomplete when wizard opens
-        document.getElementById('medicationWizardModal').addEventListener('shown.bs.modal', () => {
-            this.currentStep = 1;
-            this.showStep(1);
-            this.updateProgress();
-            if (typeof initializeMedicationSearch === 'function') {
-                // Initialize autocomplete for medication search
-                setTimeout(() => {
-                    initializeMedicationSearch('wizard-med-search', 'wizard-medication-dropdown');
-                }, 200);
-            }
-        });
+        const modal = document.getElementById('medicationWizardModal');
+        if (modal) {
+            modal.addEventListener('shown.bs.modal', () => {
+                this.showStep(1);
+                this.updateProgress();
+                if (typeof initializeMedicationSearch === 'function') {
+                    // Initialize autocomplete for medication search
+                    setTimeout(() => {
+                        initializeMedicationSearch('wizard-med-search', 'wizard-medication-dropdown');
+                    }, 100);
+                }
+            });
 
-        // Reset wizard when modal closes
-        document.getElementById('medicationWizardModal').addEventListener('hidden.bs.modal', () => {
-            this.resetWizard();
-        });
+            // Reset wizard when modal closes
+            modal.addEventListener('hidden.bs.modal', () => {
+                this.resetWizard();
+            });
+        }
     }
 
     setupEventListeners() {
@@ -237,14 +240,11 @@ class MedicationWizard {
         const skipBtn = document.getElementById('skipBtn');
         const saveBtn = document.getElementById('saveBtn');
 
-        if (!stepContent) {
-            console.error('Step content container not found');
-            return;
-        }
+        if (!stepContent) return;
 
         // Show/hide navigation buttons
         if (prevBtn) prevBtn.style.display = step > 1 ? 'block' : 'none';
-
+        
         if (step === this.totalSteps) {
             if (nextBtn) nextBtn.style.display = 'none';
             if (skipBtn) skipBtn.style.display = 'none';
@@ -256,24 +256,17 @@ class MedicationWizard {
         }
 
         // Generate step content
-        const content = this.getStepContent(step);
-        stepContent.innerHTML = content;
-
-        console.log(`Showing step ${step}, content length: ${content.length}`);
-
+        stepContent.innerHTML = this.getStepContent(step);
         this.updateProgress();
 
         // Populate form with existing data
-        setTimeout(() => {
-            this.populateStepData(step);
-        }, 100);
+        this.populateStepData(step);
     }
 
     getStepContent(step) {
-        console.log(`Generating content for step ${step}`);
         switch(step) {
             case 1:
-                const step1Content = `
+                return `
                     <h4><span class="step-number">1</span> Search & Select Medication</h4>
                     <div class="position-relative mb-3">
                         <label for="wizard-med-search" class="form-label fw-semibold">
@@ -288,7 +281,7 @@ class MedicationWizard {
                         </div>
                         <div id="wizard-medication-dropdown" class="dropdown-suggestions" style="display: none;"></div>
                     </div>
-
+                    
                     <div id="wizard-medication-details" class="medication-preview mb-4" style="display: none;">
                         <div class="alert alert-info">
                             <h6 class="mb-2"><i class="fas fa-info-circle me-1"></i>Medication Details</h6>
@@ -296,8 +289,6 @@ class MedicationWizard {
                         </div>
                     </div>
                 `;
-                console.log('Step 1 content generated:', step1Content.length);
-                return step1Content;
 
             case 2:
                 return `
@@ -315,7 +306,7 @@ class MedicationWizard {
                         </div>
                         <small class="text-muted">Amount per dose</small>
                     </div>
-
+                    
                     <!-- Frequency Selection with Time Presets -->
                     <div class="mb-4">
                         <label class="form-label fw-semibold">
@@ -333,7 +324,7 @@ class MedicationWizard {
                             <button type="button" class="btn btn-outline-primary frequency-btn" 
                                     data-frequency="as-needed" data-times="0">As Needed (PRN)</button>
                         </div>
-
+                        
                         <!-- Time Pickers Container -->
                         <div id="wizard-time-pickers-container" class="time-pickers" style="display: none;">
                             <h6 class="fw-semibold mb-3">
@@ -343,7 +334,7 @@ class MedicationWizard {
                                 <!-- Time inputs will be populated by JavaScript -->
                             </div>
                         </div>
-
+                        
                         <!-- Hidden frequency input for form submission -->
                         <input type="hidden" id="wizard-frequency" name="frequency">
                     </div>
@@ -432,10 +423,10 @@ class MedicationWizard {
                 const frequencyInput = document.getElementById('wizard-frequency');
                 if (dosageInput && this.formData.dosage) dosageInput.value = this.formData.dosage;
                 if (frequencyInput && this.formData.frequency) frequencyInput.value = this.formData.frequency;
-
+                
                 // Initialize frequency and time picker functionality
                 this.initializeWizardFrequency();
-
+                
                 // Restore selected frequency if exists
                 if (this.formData.selectedFrequency) {
                     const selectedBtn = document.querySelector(`[data-frequency="${this.formData.selectedFrequency}"]`);
@@ -481,13 +472,13 @@ class MedicationWizard {
                 const frequencyInput = document.getElementById('wizard-frequency');
                 if (dosageInput) this.formData.dosage = dosageInput.value;
                 if (frequencyInput) this.formData.frequency = frequencyInput.value;
-
+                
                 // Save selected frequency type and times
                 const selectedFrequencyBtn = document.querySelector('.frequency-btn.btn-primary');
                 if (selectedFrequencyBtn) {
                     this.formData.selectedFrequency = selectedFrequencyBtn.dataset.frequency;
                 }
-
+                
                 // Save medication times
                 const timeInputs = document.querySelectorAll('.wizard-medication-time');
                 this.formData.medicationTimes = Array.from(timeInputs).map(input => input.value);
@@ -585,7 +576,7 @@ class MedicationWizard {
         }
 
         this.saveStepData(this.currentStep);
-
+        
         if (this.currentStep < this.totalSteps) {
             this.showStep(this.currentStep + 1);
         }
@@ -593,7 +584,7 @@ class MedicationWizard {
 
     prevStep() {
         this.saveStepData(this.currentStep);
-
+        
         if (this.currentStep > 1) {
             this.showStep(this.currentStep - 1);
         }
@@ -602,7 +593,7 @@ class MedicationWizard {
     updateProgress() {
         const progressBar = document.querySelector('#wizardProgress .progress-bar');
         const progressText = document.getElementById('progressText');
-
+        
         if (progressBar && progressText) {
             const percentage = (this.currentStep / this.totalSteps) * 100;
             progressBar.style.width = percentage + '%';
@@ -613,7 +604,7 @@ class MedicationWizard {
 
     async saveMedication() {
         this.saveStepData(this.currentStep);
-
+        
         // Validate required fields
         if (!this.formData.name || !this.formData.start_date || !this.formData.end_date) {
             alert('Please ensure all required fields are filled.');
@@ -622,13 +613,13 @@ class MedicationWizard {
 
         try {
             const formData = new FormData();
-
+            
             // Get CSRF token
             const csrfToken = document.querySelector('input[name="csrf_token"]');
             if (csrfToken) {
                 formData.append('csrf_token', csrfToken.value);
             }
-
+            
             formData.append('name', this.formData.name);
             formData.append('dosage', this.formData.dosage || '');
             formData.append('frequency', this.formData.frequency || '');
@@ -638,7 +629,7 @@ class MedicationWizard {
             formData.append('expiration_date', this.formData.end_date);
             formData.append('add_medication', '1');
 
-            const response = await fetch(`{{ url_for('medications_partial', resident_id=resident.id) }}`, {
+            const response = await fetch(`{{ url_for('medications', resident_id=resident.id) }}`, {
                 method: 'POST',
                 body: formData
             });
@@ -647,7 +638,7 @@ class MedicationWizard {
                 // Close modal and reload the partial
                 const modal = bootstrap.Modal.getInstance(document.getElementById('medicationWizardModal'));
                 if (modal) modal.hide();
-
+                
                 // Reload the medications partial
                 window.location.reload();
             } else {
@@ -664,7 +655,7 @@ class MedicationWizard {
         const frequencyInput = document.getElementById('wizard-frequency');
         const timePickersContainer = document.getElementById('wizard-time-pickers-container');
         const timeInputsContainer = document.getElementById('wizard-time-inputs');
-
+        
         // Frequency presets with times
         const frequencyPresets = {
             'once-daily': { label: 'Daily', times: ['07:00'] },
@@ -697,22 +688,22 @@ class MedicationWizard {
 
         function updateTimeInputs(frequencyType) {
             if (!timeInputsContainer) return;
-
+            
             // Clear existing time inputs
             timeInputsContainer.innerHTML = '';
-
+            
             const preset = frequencyPresets[frequencyType];
             const times = preset.times;
-
+            
             if (times.length > 0 && timePickersContainer) {
                 timePickersContainer.style.display = 'block';
-
+                
                 // Create time inputs with presets
                 times.forEach((presetTime, index) => {
                     const timeDiv = createTimeInput(index + 1, presetTime);
                     timeInputsContainer.appendChild(timeDiv);
                 });
-
+                
                 // Add helpful text about presets
                 const helpText = document.createElement('div');
                 helpText.className = 'col-12 mb-2';
@@ -733,26 +724,26 @@ class MedicationWizard {
         frequencyButtons.forEach(button => {
             button.addEventListener('click', function(e) {
                 e.preventDefault();
-
+                
                 // Remove active class from all buttons
                 frequencyButtons.forEach(btn => {
                     btn.classList.remove('btn-primary');
                     btn.classList.add('btn-outline-primary');
                 });
-
+                
                 // Add active class to clicked button
                 this.classList.remove('btn-outline-primary');
                 this.classList.add('btn-primary');
-
+                
                 // Get frequency data
                 const frequencyType = this.getAttribute('data-frequency');
                 const preset = frequencyPresets[frequencyType];
-
+                
                 // Update hidden frequency input
                 if (preset && frequencyInput) {
                     frequencyInput.value = preset.label;
                 }
-
+                
                 // Update time inputs with presets
                 updateTimeInputs(frequencyType);
             });
@@ -772,16 +763,11 @@ class MedicationWizard {
     }
 }
 
-// Initialize wizard when page loads
+// Initialize wizard when content loads
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Initializing MedicationWizard...');
-    try {
-        window.medicationWizard = new MedicationWizard();
-        console.log('MedicationWizard initialized successfully');
-    } catch (error) {
-        console.error('Error initializing MedicationWizard:', error);
-    }
-
+    // Initialize wizard
+    window.medicationWizard = new MedicationWizard();
+    
     // Initialize medication search after content loads
     if (typeof initializeMedicationSearch === 'function') {
         setTimeout(() => {

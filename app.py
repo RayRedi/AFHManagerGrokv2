@@ -59,7 +59,7 @@ if not ENCRYPTION_KEY:
 cipher = Fernet(ENCRYPTION_KEY.encode())
 
 # Import models and initialize database
-from models import db, User, Resident, FoodIntake, LiquidIntake, BowelMovement, UrineOutput, Vitals, EncryptedText, IncidentReport
+from models import db, Resident, FoodIntake, LiquidIntake, BowelMovement, UrineOutput, Vitals, EncryptedText, IncidentReport
 db.init_app(app)
 
 # Initialize other extensions
@@ -72,6 +72,12 @@ login_manager.login_view = 'login'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # Database Models
+class User(db.Model, UserMixin):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(50), unique=True, nullable=False)
+    password_hash = db.Column(db.String(100), nullable=False)
+    role = db.Column(db.String(20), nullable=False)  # 'admin' or 'caregiver'
+
 class DeleteResidentForm(FlaskForm):
     submit = SubmitField('Delete')
 
@@ -611,12 +617,7 @@ def resident_profile(resident_id):
     resident = Resident.query.get_or_404(resident_id)
     return render_template('resident_profile.html', resident=resident)
 
-@app.route('/resident/<int:resident_id>/medications', methods=['GET', 'POST'])
-@login_required
-def medications(resident_id):
-    return redirect(url_for('resident_profile', resident_id=resident_id))
-
-@app.route('/resident/<int:resident_id>/medications/partial', methods=['GET', 'POST'])
+@app.route('/resident/<int:resident_id>/medications/partial')
 @login_required
 def medications_partial(resident_id):
     if current_user.role != 'admin':
@@ -627,56 +628,6 @@ def medications_partial(resident_id):
     medication_form = MedicationForm()
     log_form = MedicationLogForm()
     log_form.medication_id.choices = [(med.id, med.name) for med in medications]
-
-    if request.method == 'POST':
-        if medication_form.validate_on_submit() and 'add_medication' in request.form:
-            name = sanitize_input(medication_form.name.data)
-            dosage = sanitize_input(medication_form.dosage.data)
-            frequency = sanitize_input(medication_form.frequency.data)
-            notes = sanitize_input(medication_form.notes.data)
-            form = sanitize_input(medication_form.form.data)
-            common_uses = sanitize_input(medication_form.common_uses.data)
-            start_date = medication_form.start_date.data
-            expiration_date = medication_form.expiration_date.data
-            if not name:
-                flash('Medication name is required')
-                return redirect(url_for('resident_profile', resident_id=resident_id))
-            new_med = Medication(resident_id=resident_id, name=name, dosage=dosage, frequency=frequency,
-                                 notes=notes, form=form, common_uses=common_uses, start_date=start_date, expiration_date=expiration_date)
-            db.session.add(new_med)
-            # Add to MedicationCatalog if not already present
-            if not MedicationCatalog.query.filter_by(name=name).first():
-                catalog_entry = MedicationCatalog(name=name, default_dosage=dosage, default_frequency=frequency,
-                                                 default_notes=notes, form=form, common_uses=common_uses)
-                db.session.add(catalog_entry)
-            db.session.commit()
-            audit_log = AuditLog(user_id=current_user.id, action=f"Added medication {name} for {resident.name}")
-            db.session.add(audit_log)
-            db.session.commit()
-            flash('Medication added successfully.')
-        elif log_form.validate_on_submit() and 'log_dose' in request.form:
-            medication_id = log_form.medication_id.data
-            time = datetime.strptime(log_form.time.data, '%H:%M').time()
-            med_name = Medication.query.get(medication_id).name
-            new_log = MedicationLog(medication_id=medication_id, resident_id=resident_id, date=date.today(), time=time, administered=True)
-            db.session.add(new_log)
-            db.session.commit()
-            audit_log = AuditLog(user_id=current_user.id, action=f"Logged dose for {med_name} for {resident.name}")
-            db.session.add(audit_log)
-            db.session.commit()
-            flash('Dose logged successfully.')
-        elif 'delete_medication' in request.form:
-            medication_id = request.form['medication_id']
-            medication = Medication.query.get_or_404(medication_id)
-            med_name = medication.name
-            db.session.delete(medication)
-            db.session.commit()
-            audit_log = AuditLog(user_id=current_user.id, action=f"Deleted medication {med_name} for {resident.name}")
-            db.session.add(audit_log)
-            db.session.commit()
-            flash('Medication deleted successfully.')
-        return redirect(url_for('resident_profile', resident_id=resident_id))
-
     medication_logs = MedicationLog.query.filter_by(resident_id=resident_id).all()
     
     return render_template('medications_partial.html', 
@@ -1197,7 +1148,71 @@ def daily_logs(resident_id):
                           vitals=vitals, missing_logs=missing_logs, prev_date=prev_date, next_date=next_date,
                           food_form=food_form, liquid_form=liquid_form, bowel_form=bowel_form, urine_form=urine_form)
 
+@app.route('/resident/<int:resident_id>/medications', methods=['GET', 'POST'])
+@login_required
+def medications(resident_id):
+    if current_user.role != 'admin':
+        flash('Access denied')
+        return redirect(url_for('home'))
 
+    resident = Resident.query.get_or_404(resident_id)
+    medications = Medication.query.filter_by(resident_id=resident_id).all()
+    medication_form = MedicationForm()
+    log_form = MedicationLogForm()
+    log_form.medication_id.choices = [(med.id, med.name) for med in medications]
+
+    if request.method == 'POST':
+        if medication_form.validate_on_submit() and 'add_medication' in request.form:
+            name = sanitize_input(medication_form.name.data)
+            dosage = sanitize_input(medication_form.dosage.data)
+            frequency = sanitize_input(medication_form.frequency.data)
+            notes = sanitize_input(medication_form.notes.data)
+            form = sanitize_input(medication_form.form.data)
+            common_uses = sanitize_input(medication_form.common_uses.data)
+            start_date = medication_form.start_date.data
+            expiration_date = medication_form.expiration_date.data
+            if not name:
+                flash('Medication name is required')
+                return redirect(url_for('medications', resident_id=resident_id))
+            new_med = Medication(resident_id=resident_id, name=name, dosage=dosage, frequency=frequency,
+                                 notes=notes, form=form, common_uses=common_uses, start_date=start_date, expiration_date=expiration_date)
+            db.session.add(new_med)
+            # Add to MedicationCatalog if not already present
+            if not MedicationCatalog.query.filter_by(name=name).first():
+                catalog_entry = MedicationCatalog(name=name, default_dosage=dosage, default_frequency=frequency,
+                                                 default_notes=notes, form=form, common_uses=common_uses)
+                db.session.add(catalog_entry)
+            db.session.commit()
+            audit_log = AuditLog(user_id=current_user.id, action=f"Added medication {name} for {resident.name}")
+            db.session.add(audit_log)
+            db.session.commit()
+            flash('Medication added successfully.')
+        elif log_form.validate_on_submit() and 'log_dose' in request.form:
+            medication_id = log_form.medication_id.data
+            time = datetime.strptime(log_form.time.data, '%H:%M').time()
+            med_name = Medication.query.get(medication_id).name
+            new_log = MedicationLog(medication_id=medication_id, resident_id=resident_id, date=date.today(), time=time, administered=True)
+            db.session.add(new_log)
+            db.session.commit()
+            audit_log = AuditLog(user_id=current_user.id, action=f"Logged dose for {med_name} for {resident.name}")
+            db.session.add(audit_log)
+            db.session.commit()
+            flash('Dose logged successfully.')
+        elif 'delete_medication' in request.form:
+            medication_id = request.form['medication_id']
+            medication = Medication.query.get_or_404(medication_id)
+            med_name = medication.name
+            db.session.delete(medication)
+            db.session.commit()
+            audit_log = AuditLog(user_id=current_user.id, action=f"Deleted medication {med_name} for {resident.name}")
+            db.session.add(audit_log)
+            db.session.commit()
+            flash('Medication deleted successfully.')
+        return redirect(url_for('medications', resident_id=resident_id))
+
+    medication_logs = MedicationLog.query.filter_by(resident_id=resident_id).all()
+    return render_template('medications.html', resident=resident, medications=medications, medication_logs=medication_logs,
+                          medication_form=medication_form, log_form=log_form)
 
 @app.route('/resident/<int:resident_id>/documents', methods=['GET', 'POST'])
 @login_required

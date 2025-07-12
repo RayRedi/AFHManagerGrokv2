@@ -1,6 +1,5 @@
 
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import UserMixin
 from sqlalchemy import TypeDecorator, Text
 from sqlalchemy.ext.hybrid import hybrid_property
 from datetime import datetime
@@ -15,12 +14,6 @@ cipher = Fernet(ENCRYPTION_KEY.encode())
 
 # Initialize SQLAlchemy instance
 db = SQLAlchemy()
-
-class User(db.Model, UserMixin):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(50), unique=True, nullable=False)
-    password_hash = db.Column(db.String(100), nullable=False)
-    role = db.Column(db.String(20), nullable=False)  # 'admin' or 'caregiver'
 
 # Custom SQLAlchemy type for encrypted fields
 class EncryptedText(TypeDecorator):
