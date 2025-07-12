@@ -115,7 +115,7 @@
                                     <td>{{ med.dosage or 'Not specified' }}</td>
                                     <td>{{ med.frequency or 'Not specified' }}</td>
                                     <td>{{ med.start_date.strftime('%Y-%m-%d') if med.start_date else 'Not set' }}</td>
-                                    <td>{{ med.expiration_date.strftime('%Y-%m-%d') if med.expiration_date else 'Not set' }}</td>
+                                    <td>{{ med.end_date.strftime('%Y-%m-%d') if med.end_date else 'Not set' }}</td>
                                     <td>
                                         {% if current_user.role == 'admin' %}
                                         <form method="POST" action="{{ url_for('medications', resident_id=resident.id) }}" style="display: inline;">
@@ -618,7 +618,7 @@ class MedicationWizard {
             formData.append('notes', this.formData.notes || '');
             formData.append('common_uses', this.formData.common_uses || '');
             formData.append('start_date', this.formData.start_date);
-            formData.append('expiration_date', this.formData.end_date);
+            formData.append('end_date', this.formData.end_date);
             
             // Add medication times
             if (this.formData.medicationTimes && this.formData.medicationTimes.length) {
