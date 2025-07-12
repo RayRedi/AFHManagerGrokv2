@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Add Medication</title>
+  <style>
+    #suggestion-box {
+      border: 1px solid #ccc;
+      position: absolute;
+      background-color: white;
+      z-index: 1000;
+      width: 100%;
+    }
+
+    .suggestion {
+      padding: 6px;
+      cursor: pointer;
+    }
+
+    .suggestion:hover {
+      background-color: #f0f0f0;
+    }
+
+    .input-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 400px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Add Medication</h2>
+
+  <form>
+    <div class="input-wrapper">
+      <label for="medication-name">Medication Name:</label><br>
+      <input type="text" id="medication-name" name="medication-name" autocomplete="off" style="width: 100%;" />
+      <div id="suggestion-box"></div>
+    </div>
+  </form>
+
+  <script>
+    const input = document.getElementById('medication-name');
+    const suggestionBox = document.getElementById('suggestion-box');
+
+    input.addEventListener('input', async () => {
+      const query = input.value.trim();
+      if (query.length < 2) {
+        suggestionBox.innerHTML = '';
+        return;
+      }
+
+      const res = await fetch(`/api/medication-suggestions?term=${encodeURIComponent(query)}`);
+      const data = await res.json();
+
+      suggestionBox.innerHTML = '';
+      data.forEach(item => {
+        const div = document.createElement('div');
+        div.textContent = `${item.name}${item.common_uses ? ` - ${item.common_uses}` : ''}`;
+        div.classList.add('suggestion');
+        div.onclick = () => {
+          input.value = item.name;
+          suggestionBox.innerHTML = '';
+        };
+        suggestionBox.appendChild(div);
+      });
+    });
+
+    document.addEventListener('click', function(event) {
+      if (!input.contains(event.target)) {
+        suggestionBox.innerHTML = '';
+      }
+    });
+  </script>
+</body>
+</html>

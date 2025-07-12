@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="display-5 fw-bold text-dark">Welcome, {{ current_user.username }}</h1>
+        <p class="lead text-muted">Manage residents, medications, and logs with ease.</p>
+    </div>
+</div>
+
+<!-- Residents -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h3 class="card-title fw-bold text-dark">Residents ({{ total_residents }})</h3>
+        <div class="row">
+            {% for resident in residents %}
+                <div class="col-12 col-md-6 col-lg-4 mb-3">
+                    <div class="card h-100 border-0 shadow-sm resident-card" style="cursor: pointer;" onclick="window.location.href='{{ url_for('resident_profile', resident_id=resident.id) }}'">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ resident.name }}</h5>
+                            <p class="card-text text-muted">DOB: {{ resident.formatted_dob or 'N/A' }}</p>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Alerts -->
+{% if alerts %}
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h3 class="card-title fw-bold text-dark">Alerts</h3>
+        <ul class="list-group list-group-flush">
+            {% for alert in alerts %}
+                <li class="list-group-item text-danger">{{ alert }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+
+<!-- Meal Trends Chart -->
+<div class="card shadow-sm">
+    <div class="card-body">
+        <h3 class="card-title fw-bold text-dark">Meal Trends (Last 7 Days)</h3>
+        <canvas id="mealChart" height="100"></canvas>
+    </div>
+</div>
+
+<script>
+    // Chart.js for Meal Trends
+    const ctx = document.getElementById('mealChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: {{ chart_labels | tojson }},
+            datasets: [
+                {
+                    label: 'Breakfast',
+                    data: {{ chart_data.breakfast | tojson }},
+                    backgroundColor: 'rgba(107, 72, 255, 0.5)',
+                    borderColor: '#6b48ff',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Lunch',
+                    data: {{ chart_data.lunch | tojson }},
+                    backgroundColor: 'rgba(0, 196, 180, 0.5)',
+                    borderColor: '#00c4b4',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Dinner',
+                    data: {{ chart_data.dinner | tojson }},
+                    backgroundColor: 'rgba(0, 82, 204, 0.5)',
+                    borderColor: '#0052cc',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: { beginAtZero: true, title: { display: true, text: 'Meals Logged' } },
+                x: { title: { display: true, text: 'Date' } }
+            },
+            plugins: {
+                legend: { position: 'top' },
+                tooltip: { enabled: true }
+            }
+        }
+    });
+</script>
+{% endblock %}

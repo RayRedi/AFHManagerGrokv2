@@ -1,0 +1,638 @@
+{% extends "base.html" %}
+{% block title %}Daily Logs - {{ resident.name }}{% endblock %}
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="display-5 fw-bold text-dark">Daily Logs for {{ resident.name }}</h1>
+        <p class="lead text-muted">Complete daily logging for meals and activities.</p>
+    </div>
+</div>
+
+<!-- Meal Selection Cards -->
+<div class="row g-4 mb-4">
+    <!-- Breakfast Card -->
+    <div class="col-12 col-md-4">
+        <div class="card meal-card h-100 shadow-sm" onclick="openMealWizard('breakfast')">
+            <div class="card-body text-center">
+                <div class="meal-icon mb-3">
+                    <i class="fas fa-sun" style="font-size: 3rem; color: #ffc107;"></i>
+                </div>
+                <h3 class="card-title fw-bold">Breakfast</h3>
+                <div class="meal-progress mb-3">
+                    <div class="progress">
+                        <div class="progress-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="step-indicators">
+                    <span class="badge bg-secondary me-1">Vitals</span>
+                    <span class="badge bg-secondary me-1">Food</span>
+                    <span class="badge bg-secondary me-1">Liquids</span>
+                    <span class="badge bg-secondary me-1">Bowel</span>
+                    <span class="badge bg-secondary">Urine</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lunch Card -->
+    <div class="col-12 col-md-4">
+        <div class="card meal-card h-100 shadow-sm" onclick="openMealWizard('lunch')">
+            <div class="card-body text-center">
+                <div class="meal-icon mb-3">
+                    <i class="fas fa-sun" style="font-size: 3rem; color: #fd7e14;"></i>
+                </div>
+                <h3 class="card-title fw-bold">Lunch</h3>
+                <div class="meal-progress mb-3">
+                    <div class="progress">
+                        <div class="progress-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="step-indicators">
+                    <span class="badge bg-secondary me-1">Food</span>
+                    <span class="badge bg-secondary me-1">Liquids</span>
+                    <span class="badge bg-secondary me-1">Bowel</span>
+                    <span class="badge bg-secondary">Urine</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dinner Card -->
+    <div class="col-12 col-md-4">
+        <div class="card meal-card h-100 shadow-sm" onclick="openMealWizard('dinner')">
+            <div class="card-body text-center">
+                <div class="meal-icon mb-3">
+                    <i class="fas fa-moon" style="font-size: 3rem; color: #6f42c1;"></i>
+                </div>
+                <h3 class="card-title fw-bold">Dinner</h3>
+                <div class="meal-progress mb-3">
+                    <div class="progress">
+                        <div class="progress-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="step-indicators">
+                    <span class="badge bg-secondary me-1">Food</span>
+                    <span class="badge bg-secondary me-1">Liquids</span>
+                    <span class="badge bg-secondary me-1">Bowel</span>
+                    <span class="badge bg-secondary">Urine</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Wizard Modal -->
+<div class="modal fade" id="mealWizardModal" tabindex="-1" aria-labelledby="mealWizardModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="mealWizardModalLabel">Daily Log Wizard</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Progress Bar -->
+                <div class="mb-4">
+                    <div id="wizardProgress" class="progress">
+                        <div class="progress-bar" style="width: 0%">
+                            <span id="progressText">Step 1 of 7</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step Content -->
+                <div id="stepContent">
+                    <!-- Content will be dynamically generated -->
+                </div>
+
+                <!-- Navigation Buttons -->
+                <div class="d-flex justify-content-between">
+                    <button type="button" id="prevBtn" class="btn btn-outline-secondary" style="display: none;">Previous</button>
+                    <div>
+                        <button type="button" id="skipBtn" class="btn btn-outline-primary me-2">Skip</button>
+                        <button type="button" id="nextBtn" class="btn btn-primary">Next</button>
+                        <button type="button" id="submitBtn" class="btn btn-success" style="display: none;">Submit</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+class DailyLogWizard {
+    constructor() {
+        this.currentMeal = '';
+        this.currentStep = 1;
+        this.totalSteps = 7;
+        this.formData = {};
+
+        this.stepDefinitions = {
+            'breakfast': [
+                { id: 1, name: 'Vitals', required: false },
+                { id: 2, name: 'Food Intake', required: true },
+                { id: 3, name: 'Liquids', required: true },
+                { id: 4, name: 'Bowel Movement', required: true },
+                { id: 5, name: 'Urine Output', required: true }
+            ],
+            'lunch': [
+                { id: 1, name: 'Food Intake', required: true },
+                { id: 2, name: 'Liquids', required: true },
+                { id: 3, name: 'Bowel Movement', required: true },
+                { id: 4, name: 'Urine Output', required: true }
+            ],
+            'dinner': [
+                { id: 1, name: 'Food Intake', required: true },
+                { id: 2, name: 'Liquids', required: true },
+                { id: 3, name: 'Bowel Movement', required: true },
+                { id: 4, name: 'Urine Output', required: true }
+            ]
+        };
+    }
+
+    startWizard(meal) {
+        this.currentMeal = meal;
+        this.currentStep = 1;
+        this.totalSteps = this.stepDefinitions[meal].length;
+        this.formData = {};
+
+        const modalTitle = document.getElementById('mealWizardModalLabel');
+        if (modalTitle) {
+            modalTitle.textContent = `${meal.charAt(0).toUpperCase() + meal.slice(1)} Log`;
+        }
+
+        this.renderStep();
+        this.updateProgress();
+        this.attachEventListeners();
+    }
+
+    renderStep() {
+        const stepContent = document.getElementById('stepContent');
+        if (!stepContent) return;
+
+        const steps = this.stepDefinitions[this.currentMeal];
+        const step = steps[this.currentStep - 1];
+
+        let html = `<h4>${step.name}</h4>`;
+
+        switch(step.id) {
+            case 1: // Vitals
+                html += `
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="systolic" class="form-label">Systolic BP</label>
+                            <input type="number" class="form-control" id="systolic" value="${this.formData.systolic || ''}">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="diastolic" class="form-label">Diastolic BP</label>
+                            <input type="number" class="form-control" id="diastolic" value="${this.formData.diastolic || ''}">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="pulse" class="form-label">Pulse</label>
+                            <input type="number" class="form-control" id="pulse" value="${this.formData.pulse || ''}">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="vitals_notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="vitals_notes" rows="3">${this.formData.vitals_notes || ''}</textarea>
+                    </div>
+                `;
+                break;
+            case 2: // Food Intake
+                html += `
+                    <div class="mb-3">
+                        <label class="form-label">Food Intake Level</label>
+                        <div class="d-grid gap-2" style="grid-template-columns: repeat(3, 1fr);">
+                            <button type="button" class="btn btn-outline-primary food-intake-btn ${this.formData.intake_level === '25%' ? 'active' : ''}" data-value="25%">25%</button>
+                            <button type="button" class="btn btn-outline-primary food-intake-btn ${this.formData.intake_level === '50%' ? 'active' : ''}" data-value="50%">50%</button>
+                            <button type="button" class="btn btn-outline-primary food-intake-btn ${this.formData.intake_level === '75%' ? 'active' : ''}" data-value="75%">75%</button>
+                            <button type="button" class="btn btn-outline-primary food-intake-btn ${this.formData.intake_level === '100%' ? 'active' : ''}" data-value="100%">100%</button>
+                            <button type="button" class="btn btn-outline-primary food-intake-btn ${this.formData.intake_level === 'Ensure' ? 'active' : ''}" data-value="Ensure">Ensure</button>
+                            <button type="button" class="btn btn-outline-primary food-intake-btn ${this.formData.intake_level === 'Other' ? 'active' : ''}" data-value="Other">Other</button>
+                        </div>
+                        <input type="hidden" id="intake_level" value="${this.formData.intake_level || ''}">
+                    </div>
+                    <div class="mb-3" id="food_notes_container" style="display: ${this.formData.intake_level === 'Other' ? 'block' : 'none'};">
+                        <label for="food_notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="food_notes" rows="3">${this.formData.food_notes || ''}</textarea>
+                    </div>
+                `;
+                break;
+            case 3: // Liquids
+                html += `
+                    <div class="mb-3">
+                        <p>Liquid 1:</p>
+                        <button type="button" class="btn btn-outline-primary liquid1-btn ${this.formData.liquid1 === 'Yes' ? 'active' : ''}" data-value="Yes">Yes</button>
+                        <button type="button" class="btn btn-outline-primary liquid1-btn ${this.formData.liquid1 === 'No' ? 'active' : ''}" data-value="No">No</button>
+                        <input type="hidden" id="liquid1" value="${this.formData.liquid1 || ''}">
+                    </div>
+                    <div class="mb-3">
+                        <p>Liquid 2:</p>
+                        <button type="button" class="btn btn-outline-primary liquid2-btn ${this.formData.liquid2 === 'Yes' ? 'active' : ''}" data-value="Yes">Yes</button>
+                        <button type="button" class="btn btn-outline-primary liquid2-btn ${this.formData.liquid2 === 'No' ? 'active' : ''}" data-value="No">No</button>
+                        <input type="hidden" id="liquid2" value="${this.formData.liquid2 || ''}">
+                    </div>
+                    <div class="mb-3">
+                        <p>Liquid 3:</p>
+                        <button type="button" class="btn btn-outline-primary liquid3-btn ${this.formData.liquid3 === 'Yes' ? 'active' : ''}" data-value="Yes">Yes</button>
+                        <button type="button" class="btn btn-outline-primary liquid3-btn ${this.formData.liquid3 === 'No' ? 'active' : ''}" data-value="No">No</button>
+                        <input type="hidden" id="liquid3" value="${this.formData.liquid3 || ''}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="liquid_notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="liquid_notes" rows="3">${this.formData.liquid_notes || ''}</textarea>
+                    </div>
+                `;
+                break;
+            case 4: // Bowel Movement
+                html += `
+                    <div class="mb-3">
+                        <label class="form-label">Size</label>
+                        <div class="d-grid gap-2" style="grid-template-columns: repeat(3, 1fr);">
+                            <button type="button" class="btn btn-outline-primary bowel-size-btn ${this.formData.bowel_size === 'Small' ? 'active' : ''}" data-value="Small">Small</button>
+                            <button type="button" class="btn btn-outline-primary bowel-size-btn ${this.formData.bowel_size === 'Medium' ? 'active' : ''}" data-value="Medium">Medium</button>
+                            <button type="button" class="btn btn-outline-primary bowel-size-btn ${this.formData.bowel_size === 'Large' ? 'active' : ''}" data-value="Large">Large</button>
+                        </div>
+                        <input type="hidden" id="bowel_size" value="${this.formData.bowel_size || ''}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Consistency</label>
+                        <div class="d-grid gap-2" style="grid-template-columns: repeat(3, 1fr);">
+                            <button type="button" class="btn btn-outline-primary bowel-consistency-btn ${this.formData.bowel_consistency === 'Soft' ? 'active' : ''}" data-value="Soft">Soft</button>
+                            <button type="button" class="btn btn-outline-primary bowel-consistency-btn ${this.formData.bowel_consistency === 'Medium' ? 'active' : ''}" data-value="Medium">Medium</button>
+                            <button type="button" class="btn btn-outline-primary bowel-consistency-btn ${this.formData.bowel_consistency === 'Hard' ? 'active' : ''}" data-value="Hard">Hard</button>
+                        </div>
+                        <input type="hidden" id="bowel_consistency" value="${this.formData.bowel_consistency || ''}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="bowel_notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="bowel_notes" rows="3">${this.formData.bowel_notes || ''}</textarea>
+                    </div>
+                `;
+                break;
+            case 5: // Urine Output
+                html += `
+                    <div class="mb-3">
+                        <label class="form-label">Urine Output</label>
+                        <div class="d-grid gap-2" style="grid-template-columns: repeat(2, 1fr);">
+                            <button type="button" class="btn btn-outline-primary urine-output-btn ${this.formData.urine_output === 'Yes' ? 'active' : ''}" data-value="Yes">Yes</button>
+                            <button type="button" class="btn btn-outline-primary urine-output-btn ${this.formData.urine_output === 'No' ? 'active' : ''}" data-value="No">No</button>
+                        </div>
+                        <input type="hidden" id="urine_output" value="${this.formData.urine_output || ''}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="urine_notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="urine_notes" rows="3">${this.formData.urine_notes || ''}</textarea>
+                    </div>
+                `;
+                break;
+        }
+
+        stepContent.innerHTML = html;
+        this.attachStepEventListeners();
+        this.updateNavigationButtons();
+    }
+
+    updateProgress() {
+        const progressBar = document.querySelector('#wizardProgress .progress-bar');
+        const progressText = document.getElementById('progressText');
+
+        if (progressBar && progressText) {
+            const percentage = (this.currentStep / this.totalSteps) * 100;
+            progressBar.style.width = percentage + '%';
+            progressText.textContent = `Step ${this.currentStep} of ${this.totalSteps}`;
+        }
+    }
+
+    updateNavigationButtons() {
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const submitBtn = document.getElementById('submitBtn');
+
+        if (prevBtn) prevBtn.style.display = this.currentStep > 1 ? 'inline-block' : 'none';
+        if (nextBtn) nextBtn.style.display = this.currentStep < this.totalSteps ? 'inline-block' : 'none';
+        if (submitBtn) submitBtn.style.display = this.currentStep === this.totalSteps ? 'inline-block' : 'none';
+    }
+
+    attachEventListeners() {
+        const nextBtn = document.getElementById('nextBtn');
+        const prevBtn = document.getElementById('prevBtn');
+        const skipBtn = document.getElementById('skipBtn');
+        const submitBtn = document.getElementById('submitBtn');
+
+        if (nextBtn) {
+            nextBtn.onclick = () => this.nextStep();
+        }
+        if (prevBtn) {
+            prevBtn.onclick = () => this.prevStep();
+        }
+        if (skipBtn) {
+            skipBtn.onclick = () => this.skipStep();
+        }
+        if (submitBtn) {
+            submitBtn.onclick = () => this.submitForm();
+        }
+    }
+
+    attachStepEventListeners() {
+        // Food intake buttons
+        const foodIntakeButtons = document.querySelectorAll('.food-intake-btn');
+        foodIntakeButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                // Remove active class from all buttons
+                foodIntakeButtons.forEach(btn => btn.classList.remove('active'));
+                // Add active class to clicked button
+                e.target.classList.add('active');
+                // Update hidden input
+                const hiddenInput = document.getElementById('intake_level');
+                if (hiddenInput) {
+                    hiddenInput.value = e.target.dataset.value;
+                }
+                // Show/hide notes field
+                const notesContainer = document.getElementById('food_notes_container');
+                if (notesContainer) {
+                    notesContainer.style.display = e.target.dataset.value === 'Other' ? 'block' : 'none';
+                }
+            });
+        });
+
+         // Liquid 1 buttons
+         const liquid1Buttons = document.querySelectorAll('.liquid1-btn');
+         liquid1Buttons.forEach(button => {
+             button.addEventListener('click', (e) => {
+                 // Remove active class from all buttons
+                 liquid1Buttons.forEach(btn => btn.classList.remove('active'));
+                 // Add active class to clicked button
+                 e.target.classList.add('active');
+                 // Update hidden input
+                 const hiddenInput = document.getElementById('liquid1');
+                 if (hiddenInput) {
+                     hiddenInput.value = e.target.dataset.value;
+                 }
+             });
+         });
+
+         // Liquid 2 buttons
+         const liquid2Buttons = document.querySelectorAll('.liquid2-btn');
+         liquid2Buttons.forEach(button => {
+             button.addEventListener('click', (e) => {
+                 // Remove active class from all buttons
+                 liquid2Buttons.forEach(btn => btn.classList.remove('active'));
+                 // Add active class to clicked button
+                 e.target.classList.add('active');
+                 // Update hidden input
+                 const hiddenInput = document.getElementById('liquid2');
+                 if (hiddenInput) {
+                     hiddenInput.value = e.target.dataset.value;
+                 }
+             });
+         });
+
+         // Liquid 3 buttons
+         const liquid3Buttons = document.querySelectorAll('.liquid3-btn');
+         liquid3Buttons.forEach(button => {
+             button.addEventListener('click', (e) => {
+                 // Remove active class from all buttons
+                 liquid3Buttons.forEach(btn => btn.classList.remove('active'));
+                 // Add active class to clicked button
+                 e.target.classList.add('active');
+                 // Update hidden input
+                 const hiddenInput = document.getElementById('liquid3');
+                 if (hiddenInput) {
+                     hiddenInput.value = e.target.dataset.value;
+                 }
+             });
+         });
+
+        // Bowel size buttons
+        const bowelSizeButtons = document.querySelectorAll('.bowel-size-btn');
+        bowelSizeButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                // Remove active class from all buttons
+                bowelSizeButtons.forEach(btn => btn.classList.remove('active'));
+                // Add active class to clicked button
+                e.target.classList.add('active');
+                // Update hidden input
+                const hiddenInput = document.getElementById('bowel_size');
+                if (hiddenInput) {
+                    hiddenInput.value = e.target.dataset.value;
+                }
+            });
+        });
+
+        // Bowel consistency buttons
+        const bowelConsistencyButtons = document.querySelectorAll('.bowel-consistency-btn');
+        bowelConsistencyButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                // Remove active class from all buttons
+                bowelConsistencyButtons.forEach(btn => btn.classList.remove('active'));
+                // Add active class to clicked button
+                e.target.classList.add('active');
+                // Update hidden input
+                const hiddenInput = document.getElementById('bowel_consistency');
+                if (hiddenInput) {
+                    hiddenInput.value = e.target.dataset.value;
+                }
+            });
+        });
+
+        // Urine output buttons
+        const urineOutputButtons = document.querySelectorAll('.urine-output-btn');
+        urineOutputButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                // Remove active class from all buttons
+                urineOutputButtons.forEach(btn => btn.classList.remove('active'));
+                // Add active class to clicked button
+                e.target.classList.add('active');
+                // Update hidden input
+                const hiddenInput = document.getElementById('urine_output');
+                if (hiddenInput) {
+                    hiddenInput.value = e.target.dataset.value;
+                }
+            });
+        });
+    }
+
+    saveCurrentStep() {
+        const steps = this.stepDefinitions[this.currentMeal];
+        const step = steps[this.currentStep - 1];
+
+        switch(step.id) {
+            case 1: // Vitals
+                const systolic = document.getElementById('systolic');
+                const diastolic = document.getElementById('diastolic');
+                const pulse = document.getElementById('pulse');
+                const vitalsNotes = document.getElementById('vitals_notes');
+
+                if (systolic) this.formData.systolic = systolic.value;
+                if (diastolic) this.formData.diastolic = diastolic.value;
+                if (pulse) this.formData.pulse = pulse.value;
+                if (vitalsNotes) this.formData.vitals_notes = vitalsNotes.value;
+                break;
+            case 2: // Food Intake
+                const intakeLevel = document.getElementById('intake_level');
+                const foodNotes = document.getElementById('food_notes');
+
+                if (intakeLevel) this.formData.intake_level = intakeLevel.value;
+                if (foodNotes) this.formData.food_notes = foodNotes.value;
+                break;
+            case 3: // Liquids
+                const liquid1 = document.getElementById('liquid1');
+                const liquid2 = document.getElementById('liquid2');
+                const liquid3 = document.getElementById('liquid3');
+                const liquidNotes = document.getElementById('liquid_notes');
+
+                if (liquid1) this.formData.liquid1 = liquid1.value;
+                if (liquid2) this.formData.liquid2 = liquid2.value;
+                if (liquid3) this.formData.liquid3 = liquid3.value;
+                if (liquidNotes) this.formData.liquid_notes = liquidNotes.value;
+                break;
+            case 4: // Bowel Movement
+                const bowelSize = document.getElementById('bowel_size');
+                const bowelConsistency = document.getElementById('bowel_consistency');
+                const bowelNotes = document.getElementById('bowel_notes');
+
+                if (bowelSize) this.formData.bowel_size = bowelSize.value;
+                if (bowelConsistency) this.formData.bowel_consistency = bowelConsistency.value;
+                if (bowelNotes) this.formData.bowel_notes = bowelNotes.value;
+                break;
+            case 5: // Urine Output
+                const urineOutput = document.getElementById('urine_output');
+                const urineNotes = document.getElementById('urine_notes');
+
+                if (urineOutput) this.formData.urine_output = urineOutput.value;
+                if (urineNotes) this.formData.urine_notes = urineNotes.value;
+                break;
+        }
+    }
+
+    nextStep() {
+        this.saveCurrentStep();
+        if (this.currentStep < this.totalSteps) {
+            this.currentStep++;
+            this.renderStep();
+            this.updateProgress();
+        }
+    }
+
+    prevStep() {
+        this.saveCurrentStep();
+        if (this.currentStep > 1) {
+            this.currentStep--;
+            this.renderStep();
+            this.updateProgress();
+        }
+    }
+
+    skipStep() {
+        if (this.currentStep < this.totalSteps) {
+            this.currentStep++;
+            this.renderStep();
+            this.updateProgress();
+        }
+    }
+
+    async submitForm() {
+        this.saveCurrentStep();
+
+        try {
+            const csrfToken = document.querySelector('[name=csrf_token]')?.value || 
+                             document.querySelector('meta[name="csrf-token"]')?.content;
+            
+            const payload = {
+                meal_type: this.currentMeal,
+                form_data: this.formData
+            };
+
+            const headers = {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            };
+
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+
+            console.log('Submitting payload:', payload);
+
+            const response = await fetch(`/resident/{{ resident.id }}/daily-log-submit`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+            
+            if (response.ok && result.success) {
+                alert(result.message || 'Daily log submitted successfully!');
+                location.reload();
+            } else {
+                console.error('Server error:', result);
+                alert(result.error || 'Error submitting form. Please try again.');
+            }
+        } catch (error) {
+            console.error('Request error:', error);
+            alert('Network error. Please check your connection and try again.');
+        }
+    }
+}
+
+// Initialize wizard
+const wizard = new DailyLogWizard();
+
+function openMealWizard(meal) {
+    wizard.startWizard(meal);
+    const modal = new bootstrap.Modal(document.getElementById('mealWizardModal'));
+    modal.show();
+}
+
+// Add CSRF token meta tag if it doesn't exist
+document.addEventListener('DOMContentLoaded', function() {
+    if (!document.querySelector('meta[name="csrf-token"]')) {
+        const meta = document.createElement('meta');
+        meta.name = 'csrf-token';
+        meta.content = '{{ csrf_token() }}';
+        document.head.appendChild(meta);
+    }
+});
+
+// Add CSS for active buttons
+const style = document.createElement('style');
+style.textContent = `
+    .food-intake-btn.active,
+    .bowel-size-btn.active,
+    .bowel-consistency-btn.active,
+    .urine-output-btn.active,
+    .liquid1-btn.active,
+    .liquid2-btn.active,
+    .liquid3-btn.active {
+        background-color: #6b48ff !important;
+        border-color: #6b48ff !important;
+        color: white !important;
+    }
+    .food-intake-btn,
+    .bowel-size-btn,
+    .bowel-consistency-btn,
+    .urine-output-btn,
+    .liquid1-btn,
+    .liquid2-btn,
+    .liquid3-btn{
+        padding: 15px;
+        font-weight: 600;
+        font-size: 1.1rem;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+    }
+    .food-intake-btn:hover,
+    .bowel-size-btn:hover,
+    .bowel-consistency-btn:hover,
+    .urine-output-btn:hover,
+    .liquid1-btn:hover,
+    .liquid2-btn:hover,
+    .liquid3-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}
