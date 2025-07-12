@@ -1,3 +1,4 @@
+
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import TypeDecorator, Text
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -180,36 +181,3 @@ class IncidentReport(db.Model):
     @follow_up_notes.setter
     def follow_up_notes(self, value):
         self._follow_up_notes = value
-
-class Medication(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    resident_id = db.Column(db.Integer, db.ForeignKey('resident.id'), nullable=False)
-    name = db.Column(db.String(100), nullable=False)
-    dosage = db.Column(db.String(50))
-    frequency = db.Column(db.String(50))
-    _notes = db.Column(EncryptedText)
-    start_date = db.Column(db.Date)
-    expiration_date = db.Column(db.Date)
-    form = db.Column(db.String(50))
-    _common_uses = db.Column(EncryptedText)
-    # Notification tracking fields
-    seven_day_warning_sent = db.Column(db.Boolean, default=False)
-    expiration_notification_sent = db.Column(db.Boolean, default=False)
-    expired_notification_sent = db.Column(db.Boolean, default=False)
-    last_notification_check = db.Column(db.Date)
-
-    @hybrid_property
-    def notes(self):
-        return self._notes
-
-    @notes.setter
-    def notes(self, value):
-        self._notes = value
-
-    @hybrid_property
-    def common_uses(self):
-        return self._common_uses
-
-    @common_uses.setter
-    def common_uses(self, value):
-        self._common_uses = value
