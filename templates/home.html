@@ -1,15 +1,16 @@
 {% extends "base.html" %}
+
 {% block title %}Home{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="row mb-4">
-    <div class="col-12 col-md-6">
+    <div class="col-12">
         <h1 class="display-5 fw-bold text-dark">Welcome, {{ current_user.username }}</h1>
         <p class="lead text-muted">Manage residents, medications, and logs with ease.</p>
-    </div>
-    <div class="col-12 col-md-6 text-end">
-        {% if current_user.role == 'admin' %}
-            <a href="{{ url_for('add_resident') }}" class="btn btn-primary btn-lg w-100 w-md-auto" style="background: #6b48ff; border: none;">Add Resident</a>
-        {% endif %}
     </div>
 </div>
 
@@ -56,9 +57,8 @@
 
 <script>
     // Chart.js for Meal Trends
-    document.addEventListener('DOMContentLoaded', function() {
-        const ctx = document.getElementById('mealChart').getContext('2d');
-        new Chart(ctx, {
+    const ctx = document.getElementById('mealChart').getContext('2d');
+    new Chart(ctx, {
         type: 'bar',
         data: {
             labels: {{ chart_labels | tojson }},
@@ -97,7 +97,6 @@
                 tooltip: { enabled: true }
             }
         }
-        });
     });
 </script>
 {% endblock %}

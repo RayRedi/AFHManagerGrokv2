@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 {% block title %}{{ resident.name }} - AFH Management{% endblock %}
 {% block content %}
@@ -130,7 +131,7 @@
                         <p class="text-muted">Choose from Medications, Documents, Daily Logs, Incident Reports, or other options to manage {{ resident.name }}'s information.</p>
                     </div>
                 </div>
-
+                
                 <!-- Loading indicator -->
                 <div id="loading-indicator" class="text-center py-5" style="display: none;">
                     <div class="spinner-border text-primary" role="status">
@@ -219,9 +220,9 @@
 /* Main Content Styles */
 .main-content-container {
     margin-left: 0;
-    margin-top: 80px; /* Account for fixed info bar */
+    margin-top: 0px; /* Handled by resident-layout-container */
     padding: 2rem;
-    min-height: calc(100vh - 216px);
+    min-height: calc(100vh - 216px); /* 56px (navbar) + 80px (info bar) + footer height if applicable */
 }
 
 /* Mobile Responsive */
@@ -229,32 +230,32 @@
     #resident-sidebar {
         display: none;
     }
-
+    
     .main-content-container {
         margin-left: 0;
         margin-top: 80px;
         padding: 1rem;
     }
-
+    
     .resident-info-bar-fixed .row > div {
         margin-bottom: 1rem;
     }
-
+    
     .resident-info-bar-fixed .col-lg-1 {
         order: -1;
         margin-bottom: 1rem;
     }
-
+    
     .resident-info-bar-fixed {
         position: relative;
         top: 0;
         box-shadow: none;
     }
-
+    
     .main-content-container {
         margin-top: 0;
     }
-
+    
     #resident-sidebar {
         top: auto;
         position: relative;
@@ -285,7 +286,7 @@
 
 /* Resident Layout Container */
 .resident-layout-container {
-    margin-top: 80px; /* Space for fixed info bar */
+    margin-top: 136px; /* 56px (navbar) + 80px (info bar) */
     padding: 0;
 }
 
@@ -301,22 +302,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const sidebarLinks = document.querySelectorAll('.sidebar-link');
     const mainContent = document.getElementById('main-content');
     const loadingIndicator = document.getElementById('loading-indicator');
-
+    
     // Handle sidebar navigation
     sidebarLinks.forEach(link => {
         link.addEventListener('click', function(e) {
             e.preventDefault();
-
+            
             // Remove active class from all links
             sidebarLinks.forEach(l => l.classList.remove('active'));
-
+            
             // Add active class to clicked link
             this.classList.add('active');
-
+            
             // Get section to load
             const section = this.getAttribute('data-section');
             loadSection(section);
-
+            
             // Close mobile menu if open
             const mobileCollapse = document.getElementById('mobile-sidebar');
             if (mobileCollapse && mobileCollapse.classList.contains('show')) {
@@ -324,36 +325,37 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
-
+    
     async function loadSection(section) {
         // Add loading state to main content
         mainContent.classList.add('loading');
         loadingIndicator.style.display = 'block';
-
+        
         try {
             let url;
             let isFormPage = false;
-
+            
             switch(section) {
                 case 'medications':
-                    url = `{{ url_for('medications_partial', resident_id=resident.id) }}`;
+                    url = `{{ url_for('medications', resident_id=resident.id) }}`;
                     break;
                 case 'documents':
-                    url = `{{ url_for('documents_partial', resident_id=resident.id) }}`;
+                    url = `{{ url_for('documents', resident_id=resident.id) }}`;
                     break;
                 case 'daily-logs':
-                    url = `{{ url_for('daily_logs_partial', resident_id=resident.id) }}`;
+                    url = `{{ url_for('daily_logs', resident_id=resident.id) }}`;
                     break;
                 case 'incident-reports':
-                    url = `{{ url_for('incidents_partial', resident_id=resident.id) }}`;
+                    url = `{{ url_for('incidents', resident_id=resident.id) }}`;
                     break;
                 case 'edit-resident':
-                    url = `{{ url_for('edit_resident_partial', resident_id=resident.id) }}`;
+                    url = `{{ url_for('edit_resident', resident_id=resident.id) }}`;
+                    isFormPage = true;
                     break;
                 case 'delete-resident':
                     if (confirm('Are you sure you want to delete this resident? This action cannot be undone.')) {
-                        window.location.href = `{{ url_for('delete_resident', resident_id=resident.id) }}`;
-                        return;
+                        url = `{{ url_for('delete_resident', resident_id=resident.id) }}`;
+                        isFormPage = true;
                     } else {
                         mainContent.classList.remove('loading');
                         loadingIndicator.style.display = 'none';
@@ -363,39 +365,40 @@ document.addEventListener('DOMContentLoaded', function() {
                 default:
                     throw new Error('Unknown section');
             }
-
+            
             // For form pages, redirect directly
             if (isFormPage) {
                 window.location.href = url;
                 return;
             }
-
+            
             // Fetch content via AJAX
             const response = await fetch(url, {
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             });
-
+            
             if (!response.ok) {
                 throw new Error('Failed to load content');
             }
-
+            
             const html = await response.text();
-
+            
             // Extract content from the response
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
-
+            
             // Try to find the main content area
-            let contentDiv = doc.querySelector('.container-fluid, .container, main, .card');
-            if (!contentDiv) {
-                contentDiv = doc.body;
+                let contentDiv = doc.querySelector('#main-content .card, #main-content .container-fluid > .row');
+                if (!contentDiv) contentDiv = doc.querySelector('.content-section');
+                if (!contentDiv) contentDiv = doc.body;
+                mainContent.innerHTML = contentDiv.innerHTML;
             }
-
+            
             // Update main content
             mainContent.innerHTML = contentDiv.innerHTML;
-
+            
             // Re-initialize any JavaScript components if needed
             if (typeof initializeMedicationSearch === 'function') {
                 setTimeout(() => {
@@ -403,7 +406,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     initializeMedicationSearch('name', 'medication-dropdown');
                 }, 100);
             }
-
+            
             // Re-initialize any charts if Chart.js is available
             if (typeof Chart !== 'undefined') {
                 // Re-run any chart initialization code
@@ -412,19 +415,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Chart re-initialization would go here if needed
                 });
             }
-
+            
         } catch (error) {
             console.error('Error loading section:', error);
             mainContent.innerHTML = `
                 <div class="alert alert-danger">
                     <h5><i class="fas fa-exclamation-triangle me-2"></i>Error Loading Content</h5>
-                    <p>Sorry, there was an error loading this section: ${error.message || 'Unknown error'}</p>
-                    <p><small class="text-muted">Section: ${section}</small></p>
+                    <p>Sorry, there was an error loading this section. Please try refreshing the page.</p>
                     <button class="btn btn-outline-danger" onclick="window.location.reload()">
                         <i class="fas fa-refresh me-2"></i>Refresh Page
-                    </button>
-                    <button class="btn btn-outline-secondary ms-2" onclick="loadSection('${section}')">
-                        <i class="fas fa-redo me-2"></i>Retry
                     </button>
                 </div>
             `;
@@ -434,7 +433,7 @@ document.addEventListener('DOMContentLoaded', function() {
             loadingIndicator.style.display = 'none';
         }
     }
-
+    
     // Auto-select medications tab on load if no hash is present
     if (!window.location.hash) {
         const medicationsLink = document.querySelector('.sidebar-link[data-section="medications"]');

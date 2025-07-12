@@ -49,16 +49,16 @@
         return;
       }
 
-      const res = await fetch(`/search_medications?q=${encodeURIComponent(query)}`);
+      const res = await fetch(`/api/medication-suggestions?term=${encodeURIComponent(query)}`);
       const data = await res.json();
 
       suggestionBox.innerHTML = '';
       data.forEach(item => {
         const div = document.createElement('div');
-        div.textContent = item.label;
+        div.textContent = `${item.name}${item.common_uses ? ` - ${item.common_uses}` : ''}`;
         div.classList.add('suggestion');
         div.onclick = () => {
-          input.value = item.brand_name;
+          input.value = item.name;
           suggestionBox.innerHTML = '';
         };
         suggestionBox.appendChild(div);
