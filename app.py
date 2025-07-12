@@ -59,7 +59,7 @@ if not ENCRYPTION_KEY:
 cipher = Fernet(ENCRYPTION_KEY.encode())
 
 # Import models and initialize database
-from models import db, Resident, FoodIntake, LiquidIntake, BowelMovement, UrineOutput, Vitals, EncryptedText, IncidentReport
+from models import db, User, Resident, FoodIntake, LiquidIntake, BowelMovement, UrineOutput, Vitals, EncryptedText, IncidentReport
 db.init_app(app)
 
 # Initialize other extensions
@@ -72,12 +72,6 @@ login_manager.login_view = 'login'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # Database Models
-class User(db.Model, UserMixin):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(50), unique=True, nullable=False)
-    password_hash = db.Column(db.String(100), nullable=False)
-    role = db.Column(db.String(20), nullable=False)  # 'admin' or 'caregiver'
-
 class DeleteResidentForm(FlaskForm):
     submit = SubmitField('Delete')
 
@@ -616,6 +610,11 @@ def delete_resident(resident_id):
 def resident_profile(resident_id):
     resident = Resident.query.get_or_404(resident_id)
     return render_template('resident_profile.html', resident=resident)
+
+@app.route('/resident/<int:resident_id>/medications', methods=['GET', 'POST'])
+@login_required
+def medications(resident_id):
+    return redirect(url_for('resident_profile', resident_id=resident_id))
 
 @app.route('/resident/<int:resident_id>/medications/partial', methods=['GET', 'POST'])
 @login_required
