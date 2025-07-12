@@ -2,64 +2,98 @@
 {% extends "base.html" %}
 {% block title %}{{ resident.name }} - AFH Management{% endblock %}
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <!-- Sidebar Navigation -->
-        <div class="col-lg-3 col-xl-2 bg-dark text-white p-0" id="resident-sidebar">
-            <div class="sidebar-header p-3">
-                <h5 class="mb-1">{{ resident.name }}</h5>
-                <small class="text-light">DOB: {{ resident.formatted_dob or 'N/A' }}</small>
-                <hr class="border-light">
-                <small class="text-light">Medical: {{ resident.medical_info or 'None specified' }}</small>
-                <br>
-                <small class="text-light">Emergency: {{ resident.emergency_contact or 'Not specified' }}</small>
+<!-- Resident Info Bar - Always Visible at Top -->
+<div class="resident-info-bar mb-4">
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-3" style="background: linear-gradient(135deg, #6b48ff 0%, #0052cc 100%); color: white; border-radius: 12px;">
+            <div class="row align-items-center">
+                <div class="col-lg-3">
+                    <h4 class="mb-1 fw-bold">{{ resident.name }}</h4>
+                    <small class="opacity-75">
+                        <i class="fas fa-calendar-alt me-1"></i>
+                        DOB: {{ resident.formatted_dob or 'N/A' }}
+                    </small>
+                </div>
+                <div class="col-lg-4">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-notes-medical me-2"></i>
+                        <div>
+                            <small class="opacity-75 d-block">Medical Info:</small>
+                            <span class="fw-medium">{{ resident.medical_info or 'None specified' }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-phone me-2"></i>
+                        <div>
+                            <small class="opacity-75 d-block">Emergency Contact:</small>
+                            <span class="fw-medium">{{ resident.emergency_contact or 'Not specified' }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-1 text-end">
+                    <a href="{{ url_for('home') }}" class="btn btn-light btn-sm">
+                        <i class="fas fa-arrow-left me-1"></i>Back
+                    </a>
+                </div>
             </div>
-            
-            <nav class="sidebar-nav">
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a href="#" class="nav-link text-white sidebar-link" data-section="medications">
-                            <i class="fas fa-pills me-2"></i>Medications
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="#" class="nav-link text-white sidebar-link" data-section="documents">
-                            <i class="fas fa-file-alt me-2"></i>Documents
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="#" class="nav-link text-white sidebar-link" data-section="daily-logs">
-                            <i class="fas fa-clipboard-list me-2"></i>Daily Logs
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="#" class="nav-link text-white sidebar-link" data-section="incident-reports">
-                            <i class="fas fa-exclamation-triangle me-2"></i>Incident Reports
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="#" class="nav-link text-white sidebar-link" data-section="edit-resident">
-                            <i class="fas fa-edit me-2"></i>Edit Resident
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="#" class="nav-link text-white sidebar-link text-danger" data-section="delete-resident">
-                            <i class="fas fa-trash me-2"></i>Delete Resident
-                        </a>
-                    </li>
-                </ul>
-            </nav>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid p-0">
+    <div class="row g-0">
+        <!-- Fixed Sidebar Navigation -->
+        <div class="col-lg-3 col-xl-2" id="resident-sidebar">
+            <div class="sidebar-container">
+                <nav class="sidebar-nav">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link sidebar-link" data-section="medications">
+                                <i class="fas fa-pills me-2"></i>Medications
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link sidebar-link" data-section="documents">
+                                <i class="fas fa-file-alt me-2"></i>Documents
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link sidebar-link" data-section="daily-logs">
+                                <i class="fas fa-clipboard-list me-2"></i>Daily Logs
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link sidebar-link" data-section="incident-reports">
+                                <i class="fas fa-exclamation-triangle me-2"></i>Incident Reports
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link sidebar-link" data-section="edit-resident">
+                                <i class="fas fa-edit me-2"></i>Edit Resident
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link sidebar-link text-danger" data-section="delete-resident">
+                                <i class="fas fa-trash me-2"></i>Delete Resident
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
         </div>
 
         <!-- Mobile Sidebar Toggle -->
-        <div class="d-lg-none">
-            <button class="btn btn-dark m-2" type="button" data-bs-toggle="collapse" data-bs-target="#mobile-sidebar">
-                <i class="fas fa-bars"></i> Menu
-            </button>
-            <div class="collapse" id="mobile-sidebar">
-                <div class="card">
+        <div class="d-lg-none w-100">
+            <div class="p-3">
+                <button class="btn btn-primary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#mobile-sidebar">
+                    <i class="fas fa-bars me-2"></i>Menu
+                </button>
+            </div>
+            <div class="collapse px-3" id="mobile-sidebar">
+                <div class="card mb-3">
                     <div class="card-body">
-                        <h6>{{ resident.name }}</h6>
                         <div class="d-grid gap-2">
                             <button class="btn btn-outline-primary sidebar-link" data-section="medications">
                                 <i class="fas fa-pills me-2"></i>Medications
@@ -87,7 +121,7 @@
 
         <!-- Main Content Area -->
         <div class="col-lg-9 col-xl-10">
-            <div class="p-4">
+            <div class="main-content-container">
                 <div id="main-content">
                     <div class="text-center py-5">
                         <i class="fas fa-arrow-left fa-3x text-muted mb-3"></i>
@@ -109,35 +143,113 @@
 </div>
 
 <style>
+/* Resident Info Bar Styles */
+.resident-info-bar {
+    position: sticky;
+    top: 76px; /* Account for navbar height */
+    z-index: 100;
+    background: #fff;
+    padding-bottom: 1rem;
+}
+
+.resident-info-bar .card-body {
+    background: linear-gradient(135deg, #6b48ff 0%, #0052cc 100%) !important;
+}
+
+/* Sidebar Styles - Flush to Left */
 #resident-sidebar {
-    min-height: calc(100vh - 76px);
-    background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%) !important;
+    position: fixed;
+    top: 180px; /* Below info bar */
+    left: 0;
+    height: calc(100vh - 180px);
+    background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%);
+    z-index: 50;
+    border-right: 1px solid rgba(255,255,255,0.1);
+}
+
+.sidebar-container {
+    height: 100%;
+    padding: 0;
+}
+
+.sidebar-nav {
+    height: 100%;
+    padding: 1rem 0;
 }
 
 .sidebar-nav .nav-link {
-    padding: 12px 20px;
+    padding: 15px 20px;
     border-bottom: 1px solid rgba(255,255,255,0.1);
     transition: all 0.3s ease;
+    color: white;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
 }
 
 .sidebar-nav .nav-link:hover {
     background-color: rgba(255,255,255,0.1);
     padding-left: 25px;
+    color: white;
 }
 
 .sidebar-nav .nav-link.active {
     background-color: rgba(255,255,255,0.2);
     border-left: 4px solid #fff;
+    color: white;
 }
 
-.sidebar-header {
-    border-bottom: 2px solid rgba(255,255,255,0.2);
+.sidebar-nav .nav-link.text-danger {
+    color: #ff6b6b !important;
 }
 
+/* Main Content Styles */
+.main-content-container {
+    margin-left: 0;
+    padding: 2rem;
+    min-height: calc(100vh - 200px);
+}
+
+/* Mobile Responsive */
 @media (max-width: 991.98px) {
     #resident-sidebar {
         display: none;
     }
+    
+    .main-content-container {
+        margin-left: 0;
+        padding: 1rem;
+    }
+    
+    .resident-info-bar .row > div {
+        margin-bottom: 1rem;
+    }
+    
+    .resident-info-bar .col-lg-1 {
+        order: -1;
+        margin-bottom: 1rem;
+    }
+}
+
+@media (min-width: 992px) {
+    .main-content-container {
+        margin-left: 25%; /* Account for sidebar width */
+    }
+}
+
+@media (min-width: 1200px) {
+    .main-content-container {
+        margin-left: 16.666667%; /* Account for sidebar width */
+    }
+}
+
+/* Content Loading Animation */
+#main-content {
+    transition: opacity 0.3s ease;
+}
+
+#main-content.loading {
+    opacity: 0.5;
 }
 </style>
 
@@ -171,9 +283,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     async function loadSection(section) {
-        // Show loading indicator
+        // Add loading state to main content
+        mainContent.classList.add('loading');
         loadingIndicator.style.display = 'block';
-        mainContent.style.display = 'none';
         
         try {
             let url;
@@ -201,8 +313,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         url = `{{ url_for('delete_resident', resident_id=resident.id) }}`;
                         isFormPage = true;
                     } else {
+                        mainContent.classList.remove('loading');
                         loadingIndicator.style.display = 'none';
-                        mainContent.style.display = 'block';
                         return;
                     }
                     break;
@@ -229,10 +341,15 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const html = await response.text();
             
-            // Extract content from the response (remove base template wrapper)
+            // Extract content from the response
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
-            const contentDiv = doc.querySelector('.container, .container-fluid, main') || doc.body;
+            
+            // Try to find the main content area
+            let contentDiv = doc.querySelector('.container-fluid, .container, main, .card');
+            if (!contentDiv) {
+                contentDiv = doc.body;
+            }
             
             // Update main content
             mainContent.innerHTML = contentDiv.innerHTML;
@@ -245,11 +362,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 }, 100);
             }
             
+            // Re-initialize any charts if Chart.js is available
+            if (typeof Chart !== 'undefined') {
+                // Re-run any chart initialization code
+                const canvasElements = mainContent.querySelectorAll('canvas');
+                canvasElements.forEach(canvas => {
+                    // Chart re-initialization would go here if needed
+                });
+            }
+            
         } catch (error) {
             console.error('Error loading section:', error);
             mainContent.innerHTML = `
                 <div class="alert alert-danger">
-                    <h5>Error Loading Content</h5>
+                    <h5><i class="fas fa-exclamation-triangle me-2"></i>Error Loading Content</h5>
                     <p>Sorry, there was an error loading this section. Please try refreshing the page.</p>
                     <button class="btn btn-outline-danger" onclick="window.location.reload()">
                         <i class="fas fa-refresh me-2"></i>Refresh Page
@@ -257,9 +383,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             `;
         } finally {
-            // Hide loading indicator and show content
+            // Remove loading state
+            mainContent.classList.remove('loading');
             loadingIndicator.style.display = 'none';
-            mainContent.style.display = 'block';
+        }
+    }
+    
+    // Auto-select medications tab on load if no hash is present
+    if (!window.location.hash) {
+        const medicationsLink = document.querySelector('.sidebar-link[data-section="medications"]');
+        if (medicationsLink) {
+            setTimeout(() => {
+                medicationsLink.click();
+            }, 500);
         }
     }
 });
